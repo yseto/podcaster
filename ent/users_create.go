@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/yseto/podcaster/ent/feeds"
 	"github.com/yseto/podcaster/ent/users"
 )
 
@@ -29,6 +30,21 @@ func (uc *UsersCreate) SetName(s string) *UsersCreate {
 func (uc *UsersCreate) SetPassword(s string) *UsersCreate {
 	uc.mutation.SetPassword(s)
 	return uc
+}
+
+// AddFeedIDs adds the "feeds" edge to the Feeds entity by IDs.
+func (uc *UsersCreate) AddFeedIDs(ids ...int) *UsersCreate {
+	uc.mutation.AddFeedIDs(ids...)
+	return uc
+}
+
+// AddFeeds adds the "feeds" edges to the Feeds entity.
+func (uc *UsersCreate) AddFeeds(f ...*Feeds) *UsersCreate {
+	ids := make([]int, len(f))
+	for i := range f {
+		ids[i] = f[i].ID
+	}
+	return uc.AddFeedIDs(ids...)
 }
 
 // Mutation returns the UsersMutation object of the builder.
@@ -104,6 +120,22 @@ func (uc *UsersCreate) createSpec() (*Users, *sqlgraph.CreateSpec) {
 	if value, ok := uc.mutation.Password(); ok {
 		_spec.SetField(users.FieldPassword, field.TypeString, value)
 		_node.Password = value
+	}
+	if nodes := uc.mutation.FeedsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   users.FeedsTable,
+			Columns: []string{users.FeedsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(feeds.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

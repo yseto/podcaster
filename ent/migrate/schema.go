@@ -8,6 +8,27 @@ import (
 )
 
 var (
+	// FeedsColumns holds the columns for the "feeds" table.
+	FeedsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt, Increment: true},
+		{Name: "title", Type: field.TypeString},
+		{Name: "url", Type: field.TypeString},
+		{Name: "users_feeds", Type: field.TypeInt, Nullable: true},
+	}
+	// FeedsTable holds the schema information for the "feeds" table.
+	FeedsTable = &schema.Table{
+		Name:       "feeds",
+		Columns:    FeedsColumns,
+		PrimaryKey: []*schema.Column{FeedsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "feeds_users_feeds",
+				Columns:    []*schema.Column{FeedsColumns[3]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt, Increment: true},
@@ -22,9 +43,11 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		FeedsTable,
 		UsersTable,
 	}
 )
 
 func init() {
+	FeedsTable.ForeignKeys[0].RefTable = UsersTable
 }

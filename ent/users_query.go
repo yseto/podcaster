@@ -4,6 +4,7 @@ package ent
 
 import (
 	"context"
+	"database/sql/driver"
 	"fmt"
 	"math"
 
@@ -11,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/yseto/podcaster/ent/feeds"
 	"github.com/yseto/podcaster/ent/predicate"
 	"github.com/yseto/podcaster/ent/users"
 )
@@ -22,6 +24,7 @@ type UsersQuery struct {
 	order      []users.OrderOption
 	inters     []Interceptor
 	predicates []predicate.Users
+	withFeeds  *FeedsQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -56,6 +59,28 @@ func (uq *UsersQuery) Unique(unique bool) *UsersQuery {
 func (uq *UsersQuery) Order(o ...users.OrderOption) *UsersQuery {
 	uq.order = append(uq.order, o...)
 	return uq
+}
+
+// QueryFeeds chains the current query on the "feeds" edge.
+func (uq *UsersQuery) QueryFeeds() *FeedsQuery {
+	query := (&FeedsClient{config: uq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := uq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := uq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(users.Table, users.FieldID, selector),
+			sqlgraph.To(feeds.Table, feeds.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, users.FeedsTable, users.FeedsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(uq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first Users entity from the query.
@@ -250,10 +275,22 @@ func (uq *UsersQuery) Clone() *UsersQuery {
 		order:      append([]users.OrderOption{}, uq.order...),
 		inters:     append([]Interceptor{}, uq.inters...),
 		predicates: append([]predicate.Users{}, uq.predicates...),
+		withFeeds:  uq.withFeeds.Clone(),
 		// clone intermediate query.
 		sql:  uq.sql.Clone(),
 		path: uq.path,
 	}
+}
+
+// WithFeeds tells the query-builder to eager-load the nodes that are connected to
+// the "feeds" edge. The optional arguments are used to configure the query builder of the edge.
+func (uq *UsersQuery) WithFeeds(opts ...func(*FeedsQuery)) *UsersQuery {
+	query := (&FeedsClient{config: uq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	uq.withFeeds = query
+	return uq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -332,8 +369,11 @@ func (uq *UsersQuery) prepareQuery(ctx context.Context) error {
 
 func (uq *UsersQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Users, error) {
 	var (
-		nodes = []*Users{}
-		_spec = uq.querySpec()
+		nodes       = []*Users{}
+		_spec       = uq.querySpec()
+		loadedTypes = [1]bool{
+			uq.withFeeds != nil,
+		}
 	)
 	_spec.ScanValues = func(columns []string) ([]any, error) {
 		return (*Users).scanValues(nil, columns)
@@ -341,6 +381,7 @@ func (uq *UsersQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Users,
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &Users{config: uq.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -352,7 +393,46 @@ func (uq *UsersQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Users,
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := uq.withFeeds; query != nil {
+		if err := uq.loadFeeds(ctx, query, nodes,
+			func(n *Users) { n.Edges.Feeds = []*Feeds{} },
+			func(n *Users, e *Feeds) { n.Edges.Feeds = append(n.Edges.Feeds, e) }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (uq *UsersQuery) loadFeeds(ctx context.Context, query *FeedsQuery, nodes []*Users, init func(*Users), assign func(*Users, *Feeds)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int]*Users)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	query.withFKs = true
+	query.Where(predicate.Feeds(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(users.FeedsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.users_feeds
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "users_feeds" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "users_feeds" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
 }
 
 func (uq *UsersQuery) sqlCount(ctx context.Context) (int, error) {

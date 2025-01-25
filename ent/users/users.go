@@ -4,6 +4,7 @@ package users
 
 import (
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 const (
@@ -15,8 +16,17 @@ const (
 	FieldName = "name"
 	// FieldPassword holds the string denoting the password field in the database.
 	FieldPassword = "password"
+	// EdgeFeeds holds the string denoting the feeds edge name in mutations.
+	EdgeFeeds = "feeds"
 	// Table holds the table name of the users in the database.
 	Table = "users"
+	// FeedsTable is the table that holds the feeds relation/edge.
+	FeedsTable = "feeds"
+	// FeedsInverseTable is the table name for the Feeds entity.
+	// It exists in this package in order to avoid circular dependency with the "feeds" package.
+	FeedsInverseTable = "feeds"
+	// FeedsColumn is the table column denoting the feeds relation/edge.
+	FeedsColumn = "users_feeds"
 )
 
 // Columns holds all SQL columns for users fields.
@@ -52,4 +62,25 @@ func ByName(opts ...sql.OrderTermOption) OrderOption {
 // ByPassword orders the results by the password field.
 func ByPassword(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPassword, opts...).ToFunc()
+}
+
+// ByFeedsCount orders the results by feeds count.
+func ByFeedsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newFeedsStep(), opts...)
+	}
+}
+
+// ByFeeds orders the results by feeds terms.
+func ByFeeds(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newFeedsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newFeedsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(FeedsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, FeedsTable, FeedsColumn),
+	)
 }

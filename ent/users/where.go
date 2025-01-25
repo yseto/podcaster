@@ -4,6 +4,7 @@ package users
 
 import (
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/yseto/podcaster/ent/predicate"
 )
 
@@ -190,6 +191,29 @@ func PasswordEqualFold(v string) predicate.Users {
 // PasswordContainsFold applies the ContainsFold predicate on the "password" field.
 func PasswordContainsFold(v string) predicate.Users {
 	return predicate.Users(sql.FieldContainsFold(FieldPassword, v))
+}
+
+// HasFeeds applies the HasEdge predicate on the "feeds" edge.
+func HasFeeds() predicate.Users {
+	return predicate.Users(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, FeedsTable, FeedsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasFeedsWith applies the HasEdge predicate on the "feeds" edge with a given conditions (other predicates).
+func HasFeedsWith(preds ...predicate.Feeds) predicate.Users {
+	return predicate.Users(func(s *sql.Selector) {
+		step := newFeedsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

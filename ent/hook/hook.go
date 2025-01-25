@@ -9,6 +9,18 @@ import (
 	"github.com/yseto/podcaster/ent"
 )
 
+// The FeedsFunc type is an adapter to allow the use of ordinary
+// function as Feeds mutator.
+type FeedsFunc func(context.Context, *ent.FeedsMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f FeedsFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.FeedsMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.FeedsMutation", m)
+}
+
 // The UsersFunc type is an adapter to allow the use of ordinary
 // function as Users mutator.
 type UsersFunc func(context.Context, *ent.UsersMutation) (ent.Value, error)
