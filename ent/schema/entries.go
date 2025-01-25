@@ -2,7 +2,9 @@ package schema
 
 import (
 	"entgo.io/ent"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
+	"entgo.io/ent/schema/index"
 )
 
 // Entries holds the schema definition for the Entries entity.
@@ -21,5 +23,17 @@ func (Entries) Fields() []ent.Field {
 
 // Edges of the Entries.
 func (Entries) Edges() []ent.Edge {
-	return nil
+	return []ent.Edge{
+		edge.From("feeds", Feeds.Type).
+			Ref("entries").
+			Unique(),
+	}
+}
+
+func (Entries) Indexes() []ent.Index {
+	return []ent.Index{
+		index.Fields("url").
+			Edges("feeds").
+			Unique(),
+	}
 }
