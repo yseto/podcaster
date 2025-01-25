@@ -3,6 +3,8 @@
 package entries
 
 import (
+	"time"
+
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 )
@@ -18,6 +20,8 @@ const (
 	FieldDescription = "description"
 	// FieldURL holds the string denoting the url field in the database.
 	FieldURL = "url"
+	// FieldPublishedAt holds the string denoting the published_at field in the database.
+	FieldPublishedAt = "published_at"
 	// EdgeFeeds holds the string denoting the feeds edge name in mutations.
 	EdgeFeeds = "feeds"
 	// Table holds the table name of the entries in the database.
@@ -37,6 +41,7 @@ var Columns = []string{
 	FieldTitle,
 	FieldDescription,
 	FieldURL,
+	FieldPublishedAt,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "entries"
@@ -60,6 +65,11 @@ func ValidColumn(column string) bool {
 	return false
 }
 
+var (
+	// DefaultPublishedAt holds the default value on creation for the "published_at" field.
+	DefaultPublishedAt time.Time
+)
+
 // OrderOption defines the ordering options for the Entries queries.
 type OrderOption func(*sql.Selector)
 
@@ -81,6 +91,11 @@ func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 // ByURL orders the results by the url field.
 func ByURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldURL, opts...).ToFunc()
+}
+
+// ByPublishedAt orders the results by the published_at field.
+func ByPublishedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldPublishedAt, opts...).ToFunc()
 }
 
 // ByFeedsField orders the results by feeds field.

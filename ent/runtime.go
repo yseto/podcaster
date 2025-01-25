@@ -2,8 +2,21 @@
 
 package ent
 
+import (
+	"time"
+
+	"github.com/yseto/podcaster/ent/entries"
+	"github.com/yseto/podcaster/ent/schema"
+)
+
 // The init function reads all schema descriptors with runtime code
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	entriesFields := schema.Entries{}.Fields()
+	_ = entriesFields
+	// entriesDescPublishedAt is the schema descriptor for published_at field.
+	entriesDescPublishedAt := entriesFields[3].Descriptor()
+	// entries.DefaultPublishedAt holds the default value on creation for the published_at field.
+	entries.DefaultPublishedAt = entriesDescPublishedAt.Default.(time.Time)
 }

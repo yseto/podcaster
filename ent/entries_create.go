@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
@@ -38,6 +39,20 @@ func (ec *EntriesCreate) SetURL(s string) *EntriesCreate {
 	return ec
 }
 
+// SetPublishedAt sets the "published_at" field.
+func (ec *EntriesCreate) SetPublishedAt(t time.Time) *EntriesCreate {
+	ec.mutation.SetPublishedAt(t)
+	return ec
+}
+
+// SetNillablePublishedAt sets the "published_at" field if the given value is not nil.
+func (ec *EntriesCreate) SetNillablePublishedAt(t *time.Time) *EntriesCreate {
+	if t != nil {
+		ec.SetPublishedAt(*t)
+	}
+	return ec
+}
+
 // SetFeedsID sets the "feeds" edge to the Feeds entity by ID.
 func (ec *EntriesCreate) SetFeedsID(id int) *EntriesCreate {
 	ec.mutation.SetFeedsID(id)
@@ -64,6 +79,7 @@ func (ec *EntriesCreate) Mutation() *EntriesMutation {
 
 // Save creates the Entries in the database.
 func (ec *EntriesCreate) Save(ctx context.Context) (*Entries, error) {
+	ec.defaults()
 	return withHooks(ctx, ec.sqlSave, ec.mutation, ec.hooks)
 }
 
@@ -86,6 +102,14 @@ func (ec *EntriesCreate) Exec(ctx context.Context) error {
 func (ec *EntriesCreate) ExecX(ctx context.Context) {
 	if err := ec.Exec(ctx); err != nil {
 		panic(err)
+	}
+}
+
+// defaults sets the default values of the builder before save.
+func (ec *EntriesCreate) defaults() {
+	if _, ok := ec.mutation.PublishedAt(); !ok {
+		v := entries.DefaultPublishedAt
+		ec.mutation.SetPublishedAt(v)
 	}
 }
 
@@ -138,6 +162,10 @@ func (ec *EntriesCreate) createSpec() (*Entries, *sqlgraph.CreateSpec) {
 		_spec.SetField(entries.FieldURL, field.TypeString, value)
 		_node.URL = value
 	}
+	if value, ok := ec.mutation.PublishedAt(); ok {
+		_spec.SetField(entries.FieldPublishedAt, field.TypeTime, value)
+		_node.PublishedAt = value
+	}
 	if nodes := ec.mutation.FeedsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{
 			Rel:     sqlgraph.M2O,
@@ -176,6 +204,7 @@ func (ecb *EntriesCreateBulk) Save(ctx context.Context) ([]*Entries, error) {
 	for i := range ecb.builders {
 		func(i int, root context.Context) {
 			builder := ecb.builders[i]
+			builder.defaults()
 			var mut Mutator = MutateFunc(func(ctx context.Context, m Mutation) (Value, error) {
 				mutation, ok := m.(*EntriesMutation)
 				if !ok {

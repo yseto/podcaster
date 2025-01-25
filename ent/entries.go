@@ -5,6 +5,7 @@ package ent
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
@@ -23,6 +24,8 @@ type Entries struct {
 	Description string `json:"description,omitempty"`
 	// URL holds the value of the "url" field.
 	URL string `json:"url,omitempty"`
+	// PublishedAt holds the value of the "published_at" field.
+	PublishedAt time.Time `json:"published_at,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the EntriesQuery when eager-loading is set.
 	Edges         EntriesEdges `json:"edges"`
@@ -59,6 +62,8 @@ func (*Entries) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullInt64)
 		case entries.FieldTitle, entries.FieldDescription, entries.FieldURL:
 			values[i] = new(sql.NullString)
+		case entries.FieldPublishedAt:
+			values[i] = new(sql.NullTime)
 		case entries.ForeignKeys[0]: // feeds_entries
 			values[i] = new(sql.NullInt64)
 		default:
@@ -99,6 +104,12 @@ func (e *Entries) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field url", values[i])
 			} else if value.Valid {
 				e.URL = value.String
+			}
+		case entries.FieldPublishedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field published_at", values[i])
+			} else if value.Valid {
+				e.PublishedAt = value.Time
 			}
 		case entries.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -156,6 +167,9 @@ func (e *Entries) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("url=")
 	builder.WriteString(e.URL)
+	builder.WriteString(", ")
+	builder.WriteString("published_at=")
+	builder.WriteString(e.PublishedAt.Format(time.ANSIC))
 	builder.WriteByte(')')
 	return builder.String()
 }

@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
@@ -67,6 +68,26 @@ func (eu *EntriesUpdate) SetNillableURL(s *string) *EntriesUpdate {
 	if s != nil {
 		eu.SetURL(*s)
 	}
+	return eu
+}
+
+// SetPublishedAt sets the "published_at" field.
+func (eu *EntriesUpdate) SetPublishedAt(t time.Time) *EntriesUpdate {
+	eu.mutation.SetPublishedAt(t)
+	return eu
+}
+
+// SetNillablePublishedAt sets the "published_at" field if the given value is not nil.
+func (eu *EntriesUpdate) SetNillablePublishedAt(t *time.Time) *EntriesUpdate {
+	if t != nil {
+		eu.SetPublishedAt(*t)
+	}
+	return eu
+}
+
+// ClearPublishedAt clears the value of the "published_at" field.
+func (eu *EntriesUpdate) ClearPublishedAt() *EntriesUpdate {
+	eu.mutation.ClearPublishedAt()
 	return eu
 }
 
@@ -144,6 +165,12 @@ func (eu *EntriesUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := eu.mutation.URL(); ok {
 		_spec.SetField(entries.FieldURL, field.TypeString, value)
+	}
+	if value, ok := eu.mutation.PublishedAt(); ok {
+		_spec.SetField(entries.FieldPublishedAt, field.TypeTime, value)
+	}
+	if eu.mutation.PublishedAtCleared() {
+		_spec.ClearField(entries.FieldPublishedAt, field.TypeTime)
 	}
 	if eu.mutation.FeedsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -233,6 +260,26 @@ func (euo *EntriesUpdateOne) SetNillableURL(s *string) *EntriesUpdateOne {
 	if s != nil {
 		euo.SetURL(*s)
 	}
+	return euo
+}
+
+// SetPublishedAt sets the "published_at" field.
+func (euo *EntriesUpdateOne) SetPublishedAt(t time.Time) *EntriesUpdateOne {
+	euo.mutation.SetPublishedAt(t)
+	return euo
+}
+
+// SetNillablePublishedAt sets the "published_at" field if the given value is not nil.
+func (euo *EntriesUpdateOne) SetNillablePublishedAt(t *time.Time) *EntriesUpdateOne {
+	if t != nil {
+		euo.SetPublishedAt(*t)
+	}
+	return euo
+}
+
+// ClearPublishedAt clears the value of the "published_at" field.
+func (euo *EntriesUpdateOne) ClearPublishedAt() *EntriesUpdateOne {
+	euo.mutation.ClearPublishedAt()
 	return euo
 }
 
@@ -340,6 +387,12 @@ func (euo *EntriesUpdateOne) sqlSave(ctx context.Context) (_node *Entries, err e
 	}
 	if value, ok := euo.mutation.URL(); ok {
 		_spec.SetField(entries.FieldURL, field.TypeString, value)
+	}
+	if value, ok := euo.mutation.PublishedAt(); ok {
+		_spec.SetField(entries.FieldPublishedAt, field.TypeTime, value)
+	}
+	if euo.mutation.PublishedAtCleared() {
+		_spec.ClearField(entries.FieldPublishedAt, field.TypeTime)
 	}
 	if euo.mutation.FeedsCleared() {
 		edge := &sqlgraph.EdgeSpec{

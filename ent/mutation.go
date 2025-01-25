@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"sync"
+	"time"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
@@ -39,6 +40,7 @@ type EntriesMutation struct {
 	title         *string
 	description   *string
 	url           *string
+	published_at  *time.Time
 	clearedFields map[string]struct{}
 	feeds         *int
 	clearedfeeds  bool
@@ -253,6 +255,55 @@ func (m *EntriesMutation) ResetURL() {
 	m.url = nil
 }
 
+// SetPublishedAt sets the "published_at" field.
+func (m *EntriesMutation) SetPublishedAt(t time.Time) {
+	m.published_at = &t
+}
+
+// PublishedAt returns the value of the "published_at" field in the mutation.
+func (m *EntriesMutation) PublishedAt() (r time.Time, exists bool) {
+	v := m.published_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPublishedAt returns the old "published_at" field's value of the Entries entity.
+// If the Entries object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EntriesMutation) OldPublishedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPublishedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPublishedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPublishedAt: %w", err)
+	}
+	return oldValue.PublishedAt, nil
+}
+
+// ClearPublishedAt clears the value of the "published_at" field.
+func (m *EntriesMutation) ClearPublishedAt() {
+	m.published_at = nil
+	m.clearedFields[entries.FieldPublishedAt] = struct{}{}
+}
+
+// PublishedAtCleared returns if the "published_at" field was cleared in this mutation.
+func (m *EntriesMutation) PublishedAtCleared() bool {
+	_, ok := m.clearedFields[entries.FieldPublishedAt]
+	return ok
+}
+
+// ResetPublishedAt resets all changes to the "published_at" field.
+func (m *EntriesMutation) ResetPublishedAt() {
+	m.published_at = nil
+	delete(m.clearedFields, entries.FieldPublishedAt)
+}
+
 // SetFeedsID sets the "feeds" edge to the Feeds entity by id.
 func (m *EntriesMutation) SetFeedsID(id int) {
 	m.feeds = &id
@@ -326,7 +377,7 @@ func (m *EntriesMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EntriesMutation) Fields() []string {
-	fields := make([]string, 0, 3)
+	fields := make([]string, 0, 4)
 	if m.title != nil {
 		fields = append(fields, entries.FieldTitle)
 	}
@@ -335,6 +386,9 @@ func (m *EntriesMutation) Fields() []string {
 	}
 	if m.url != nil {
 		fields = append(fields, entries.FieldURL)
+	}
+	if m.published_at != nil {
+		fields = append(fields, entries.FieldPublishedAt)
 	}
 	return fields
 }
@@ -350,6 +404,8 @@ func (m *EntriesMutation) Field(name string) (ent.Value, bool) {
 		return m.Description()
 	case entries.FieldURL:
 		return m.URL()
+	case entries.FieldPublishedAt:
+		return m.PublishedAt()
 	}
 	return nil, false
 }
@@ -365,6 +421,8 @@ func (m *EntriesMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldDescription(ctx)
 	case entries.FieldURL:
 		return m.OldURL(ctx)
+	case entries.FieldPublishedAt:
+		return m.OldPublishedAt(ctx)
 	}
 	return nil, fmt.Errorf("unknown Entries field %s", name)
 }
@@ -395,6 +453,13 @@ func (m *EntriesMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetURL(v)
 		return nil
+	case entries.FieldPublishedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPublishedAt(v)
+		return nil
 	}
 	return fmt.Errorf("unknown Entries field %s", name)
 }
@@ -424,7 +489,11 @@ func (m *EntriesMutation) AddField(name string, value ent.Value) error {
 // ClearedFields returns all nullable fields that were cleared during this
 // mutation.
 func (m *EntriesMutation) ClearedFields() []string {
-	return nil
+	var fields []string
+	if m.FieldCleared(entries.FieldPublishedAt) {
+		fields = append(fields, entries.FieldPublishedAt)
+	}
+	return fields
 }
 
 // FieldCleared returns a boolean indicating if a field with the given name was
@@ -437,6 +506,11 @@ func (m *EntriesMutation) FieldCleared(name string) bool {
 // ClearField clears the value of the field with the given name. It returns an
 // error if the field is not defined in the schema.
 func (m *EntriesMutation) ClearField(name string) error {
+	switch name {
+	case entries.FieldPublishedAt:
+		m.ClearPublishedAt()
+		return nil
+	}
 	return fmt.Errorf("unknown Entries nullable field %s", name)
 }
 
@@ -452,6 +526,9 @@ func (m *EntriesMutation) ResetField(name string) error {
 		return nil
 	case entries.FieldURL:
 		m.ResetURL()
+		return nil
+	case entries.FieldPublishedAt:
+		m.ResetPublishedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown Entries field %s", name)
