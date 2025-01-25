@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/yseto/podcaster/ent/entries"
 	"github.com/yseto/podcaster/ent/feeds"
 )
 
@@ -29,6 +30,21 @@ func (fc *FeedsCreate) SetTitle(s string) *FeedsCreate {
 func (fc *FeedsCreate) SetURL(s string) *FeedsCreate {
 	fc.mutation.SetURL(s)
 	return fc
+}
+
+// AddEntryIDs adds the "entries" edge to the Entries entity by IDs.
+func (fc *FeedsCreate) AddEntryIDs(ids ...int) *FeedsCreate {
+	fc.mutation.AddEntryIDs(ids...)
+	return fc
+}
+
+// AddEntries adds the "entries" edges to the Entries entity.
+func (fc *FeedsCreate) AddEntries(e ...*Entries) *FeedsCreate {
+	ids := make([]int, len(e))
+	for i := range e {
+		ids[i] = e[i].ID
+	}
+	return fc.AddEntryIDs(ids...)
 }
 
 // Mutation returns the FeedsMutation object of the builder.
@@ -104,6 +120,22 @@ func (fc *FeedsCreate) createSpec() (*Feeds, *sqlgraph.CreateSpec) {
 	if value, ok := fc.mutation.URL(); ok {
 		_spec.SetField(feeds.FieldURL, field.TypeString, value)
 		_node.URL = value
+	}
+	if nodes := fc.mutation.EntriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   feeds.EntriesTable,
+			Columns: []string{feeds.EntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(entries.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

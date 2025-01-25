@@ -6,6 +6,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// Entries is the predicate function for entries builders.
+type Entries func(*sql.Selector)
+
 // Feeds is the predicate function for feeds builders.
 type Feeds func(*sql.Selector)
 

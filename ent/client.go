@@ -15,6 +15,7 @@ import (
 	"entgo.io/ent/dialect"
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
+	"github.com/yseto/podcaster/ent/entries"
 	"github.com/yseto/podcaster/ent/feeds"
 	"github.com/yseto/podcaster/ent/users"
 )
@@ -24,6 +25,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// Entries is the client for interacting with the Entries builders.
+	Entries *EntriesClient
 	// Feeds is the client for interacting with the Feeds builders.
 	Feeds *FeedsClient
 	// Users is the client for interacting with the Users builders.
@@ -39,6 +42,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.Entries = NewEntriesClient(c.config)
 	c.Feeds = NewFeedsClient(c.config)
 	c.Users = NewUsersClient(c.config)
 }
@@ -131,10 +135,11 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:    ctx,
-		config: cfg,
-		Feeds:  NewFeedsClient(cfg),
-		Users:  NewUsersClient(cfg),
+		ctx:     ctx,
+		config:  cfg,
+		Entries: NewEntriesClient(cfg),
+		Feeds:   NewFeedsClient(cfg),
+		Users:   NewUsersClient(cfg),
 	}, nil
 }
 
@@ -152,17 +157,18 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:    ctx,
-		config: cfg,
-		Feeds:  NewFeedsClient(cfg),
-		Users:  NewUsersClient(cfg),
+		ctx:     ctx,
+		config:  cfg,
+		Entries: NewEntriesClient(cfg),
+		Feeds:   NewFeedsClient(cfg),
+		Users:   NewUsersClient(cfg),
 	}, nil
 }
 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		Feeds.
+//		Entries.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -184,6 +190,7 @@ func (c *Client) Close() error {
 // Use adds the mutation hooks to all the entity clients.
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
+	c.Entries.Use(hooks...)
 	c.Feeds.Use(hooks...)
 	c.Users.Use(hooks...)
 }
@@ -191,6 +198,7 @@ func (c *Client) Use(hooks ...Hook) {
 // Intercept adds the query interceptors to all the entity clients.
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
+	c.Entries.Intercept(interceptors...)
 	c.Feeds.Intercept(interceptors...)
 	c.Users.Intercept(interceptors...)
 }
@@ -198,12 +206,147 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *EntriesMutation:
+		return c.Entries.mutate(ctx, m)
 	case *FeedsMutation:
 		return c.Feeds.mutate(ctx, m)
 	case *UsersMutation:
 		return c.Users.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// EntriesClient is a client for the Entries schema.
+type EntriesClient struct {
+	config
+}
+
+// NewEntriesClient returns a client for the Entries from the given config.
+func NewEntriesClient(c config) *EntriesClient {
+	return &EntriesClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `entries.Hooks(f(g(h())))`.
+func (c *EntriesClient) Use(hooks ...Hook) {
+	c.hooks.Entries = append(c.hooks.Entries, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `entries.Intercept(f(g(h())))`.
+func (c *EntriesClient) Intercept(interceptors ...Interceptor) {
+	c.inters.Entries = append(c.inters.Entries, interceptors...)
+}
+
+// Create returns a builder for creating a Entries entity.
+func (c *EntriesClient) Create() *EntriesCreate {
+	mutation := newEntriesMutation(c.config, OpCreate)
+	return &EntriesCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of Entries entities.
+func (c *EntriesClient) CreateBulk(builders ...*EntriesCreate) *EntriesCreateBulk {
+	return &EntriesCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *EntriesClient) MapCreateBulk(slice any, setFunc func(*EntriesCreate, int)) *EntriesCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &EntriesCreateBulk{err: fmt.Errorf("calling to EntriesClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*EntriesCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &EntriesCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for Entries.
+func (c *EntriesClient) Update() *EntriesUpdate {
+	mutation := newEntriesMutation(c.config, OpUpdate)
+	return &EntriesUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *EntriesClient) UpdateOne(e *Entries) *EntriesUpdateOne {
+	mutation := newEntriesMutation(c.config, OpUpdateOne, withEntries(e))
+	return &EntriesUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *EntriesClient) UpdateOneID(id int) *EntriesUpdateOne {
+	mutation := newEntriesMutation(c.config, OpUpdateOne, withEntriesID(id))
+	return &EntriesUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for Entries.
+func (c *EntriesClient) Delete() *EntriesDelete {
+	mutation := newEntriesMutation(c.config, OpDelete)
+	return &EntriesDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *EntriesClient) DeleteOne(e *Entries) *EntriesDeleteOne {
+	return c.DeleteOneID(e.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *EntriesClient) DeleteOneID(id int) *EntriesDeleteOne {
+	builder := c.Delete().Where(entries.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &EntriesDeleteOne{builder}
+}
+
+// Query returns a query builder for Entries.
+func (c *EntriesClient) Query() *EntriesQuery {
+	return &EntriesQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeEntries},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a Entries entity by its id.
+func (c *EntriesClient) Get(ctx context.Context, id int) (*Entries, error) {
+	return c.Query().Where(entries.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *EntriesClient) GetX(ctx context.Context, id int) *Entries {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *EntriesClient) Hooks() []Hook {
+	return c.hooks.Entries
+}
+
+// Interceptors returns the client interceptors.
+func (c *EntriesClient) Interceptors() []Interceptor {
+	return c.inters.Entries
+}
+
+func (c *EntriesClient) mutate(ctx context.Context, m *EntriesMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&EntriesCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&EntriesUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&EntriesUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&EntriesDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown Entries mutation op: %q", m.Op())
 	}
 }
 
@@ -313,6 +456,22 @@ func (c *FeedsClient) GetX(ctx context.Context, id int) *Feeds {
 		panic(err)
 	}
 	return obj
+}
+
+// QueryEntries queries the entries edge of a Feeds.
+func (c *FeedsClient) QueryEntries(f *Feeds) *EntriesQuery {
+	query := (&EntriesClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := f.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(feeds.Table, feeds.FieldID, id),
+			sqlgraph.To(entries.Table, entries.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, false, feeds.EntriesTable, feeds.EntriesColumn),
+		)
+		fromV = sqlgraph.Neighbors(f.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
 }
 
 // Hooks returns the client hooks.
@@ -492,9 +651,9 @@ func (c *UsersClient) mutate(ctx context.Context, m *UsersMutation) (Value, erro
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Feeds, Users []ent.Hook
+		Entries, Feeds, Users []ent.Hook
 	}
 	inters struct {
-		Feeds, Users []ent.Interceptor
+		Entries, Feeds, Users []ent.Interceptor
 	}
 )

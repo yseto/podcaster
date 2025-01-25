@@ -19,9 +19,30 @@ type Feeds struct {
 	// Title holds the value of the "title" field.
 	Title string `json:"title,omitempty"`
 	// URL holds the value of the "url" field.
-	URL          string `json:"url,omitempty"`
+	URL string `json:"url,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the FeedsQuery when eager-loading is set.
+	Edges        FeedsEdges `json:"edges"`
 	users_feeds  *int
 	selectValues sql.SelectValues
+}
+
+// FeedsEdges holds the relations/edges for other nodes in the graph.
+type FeedsEdges struct {
+	// Entries holds the value of the entries edge.
+	Entries []*Entries `json:"entries,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// EntriesOrErr returns the Entries value or an error if the edge
+// was not loaded in eager-loading.
+func (e FeedsEdges) EntriesOrErr() ([]*Entries, error) {
+	if e.loadedTypes[0] {
+		return e.Entries, nil
+	}
+	return nil, &NotLoadedError{edge: "entries"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -86,6 +107,11 @@ func (f *Feeds) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (f *Feeds) Value(name string) (ent.Value, error) {
 	return f.selectValues.Get(name)
+}
+
+// QueryEntries queries the "entries" edge of the Feeds entity.
+func (f *Feeds) QueryEntries() *EntriesQuery {
+	return NewFeedsClient(f.config).QueryEntries(f)
 }
 
 // Update returns a builder for updating this Feeds.

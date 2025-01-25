@@ -4,6 +4,7 @@ package feeds
 
 import (
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 const (
@@ -15,8 +16,17 @@ const (
 	FieldTitle = "title"
 	// FieldURL holds the string denoting the url field in the database.
 	FieldURL = "url"
+	// EdgeEntries holds the string denoting the entries edge name in mutations.
+	EdgeEntries = "entries"
 	// Table holds the table name of the feeds in the database.
 	Table = "feeds"
+	// EntriesTable is the table that holds the entries relation/edge.
+	EntriesTable = "entries"
+	// EntriesInverseTable is the table name for the Entries entity.
+	// It exists in this package in order to avoid circular dependency with the "entries" package.
+	EntriesInverseTable = "entries"
+	// EntriesColumn is the table column denoting the entries relation/edge.
+	EntriesColumn = "feeds_entries"
 )
 
 // Columns holds all SQL columns for feeds fields.
@@ -63,4 +73,25 @@ func ByTitle(opts ...sql.OrderTermOption) OrderOption {
 // ByURL orders the results by the url field.
 func ByURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldURL, opts...).ToFunc()
+}
+
+// ByEntriesCount orders the results by entries count.
+func ByEntriesCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newEntriesStep(), opts...)
+	}
+}
+
+// ByEntries orders the results by entries terms.
+func ByEntries(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newEntriesStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+func newEntriesStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(EntriesInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, false, EntriesTable, EntriesColumn),
+	)
 }

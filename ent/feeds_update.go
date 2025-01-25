@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/yseto/podcaster/ent/entries"
 	"github.com/yseto/podcaster/ent/feeds"
 	"github.com/yseto/podcaster/ent/predicate"
 )
@@ -55,9 +56,45 @@ func (fu *FeedsUpdate) SetNillableURL(s *string) *FeedsUpdate {
 	return fu
 }
 
+// AddEntryIDs adds the "entries" edge to the Entries entity by IDs.
+func (fu *FeedsUpdate) AddEntryIDs(ids ...int) *FeedsUpdate {
+	fu.mutation.AddEntryIDs(ids...)
+	return fu
+}
+
+// AddEntries adds the "entries" edges to the Entries entity.
+func (fu *FeedsUpdate) AddEntries(e ...*Entries) *FeedsUpdate {
+	ids := make([]int, len(e))
+	for i := range e {
+		ids[i] = e[i].ID
+	}
+	return fu.AddEntryIDs(ids...)
+}
+
 // Mutation returns the FeedsMutation object of the builder.
 func (fu *FeedsUpdate) Mutation() *FeedsMutation {
 	return fu.mutation
+}
+
+// ClearEntries clears all "entries" edges to the Entries entity.
+func (fu *FeedsUpdate) ClearEntries() *FeedsUpdate {
+	fu.mutation.ClearEntries()
+	return fu
+}
+
+// RemoveEntryIDs removes the "entries" edge to Entries entities by IDs.
+func (fu *FeedsUpdate) RemoveEntryIDs(ids ...int) *FeedsUpdate {
+	fu.mutation.RemoveEntryIDs(ids...)
+	return fu
+}
+
+// RemoveEntries removes "entries" edges to Entries entities.
+func (fu *FeedsUpdate) RemoveEntries(e ...*Entries) *FeedsUpdate {
+	ids := make([]int, len(e))
+	for i := range e {
+		ids[i] = e[i].ID
+	}
+	return fu.RemoveEntryIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -101,6 +138,51 @@ func (fu *FeedsUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := fu.mutation.URL(); ok {
 		_spec.SetField(feeds.FieldURL, field.TypeString, value)
+	}
+	if fu.mutation.EntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   feeds.EntriesTable,
+			Columns: []string{feeds.EntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(entries.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := fu.mutation.RemovedEntriesIDs(); len(nodes) > 0 && !fu.mutation.EntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   feeds.EntriesTable,
+			Columns: []string{feeds.EntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(entries.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := fu.mutation.EntriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   feeds.EntriesTable,
+			Columns: []string{feeds.EntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(entries.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, fu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -150,9 +232,45 @@ func (fuo *FeedsUpdateOne) SetNillableURL(s *string) *FeedsUpdateOne {
 	return fuo
 }
 
+// AddEntryIDs adds the "entries" edge to the Entries entity by IDs.
+func (fuo *FeedsUpdateOne) AddEntryIDs(ids ...int) *FeedsUpdateOne {
+	fuo.mutation.AddEntryIDs(ids...)
+	return fuo
+}
+
+// AddEntries adds the "entries" edges to the Entries entity.
+func (fuo *FeedsUpdateOne) AddEntries(e ...*Entries) *FeedsUpdateOne {
+	ids := make([]int, len(e))
+	for i := range e {
+		ids[i] = e[i].ID
+	}
+	return fuo.AddEntryIDs(ids...)
+}
+
 // Mutation returns the FeedsMutation object of the builder.
 func (fuo *FeedsUpdateOne) Mutation() *FeedsMutation {
 	return fuo.mutation
+}
+
+// ClearEntries clears all "entries" edges to the Entries entity.
+func (fuo *FeedsUpdateOne) ClearEntries() *FeedsUpdateOne {
+	fuo.mutation.ClearEntries()
+	return fuo
+}
+
+// RemoveEntryIDs removes the "entries" edge to Entries entities by IDs.
+func (fuo *FeedsUpdateOne) RemoveEntryIDs(ids ...int) *FeedsUpdateOne {
+	fuo.mutation.RemoveEntryIDs(ids...)
+	return fuo
+}
+
+// RemoveEntries removes "entries" edges to Entries entities.
+func (fuo *FeedsUpdateOne) RemoveEntries(e ...*Entries) *FeedsUpdateOne {
+	ids := make([]int, len(e))
+	for i := range e {
+		ids[i] = e[i].ID
+	}
+	return fuo.RemoveEntryIDs(ids...)
 }
 
 // Where appends a list predicates to the FeedsUpdate builder.
@@ -226,6 +344,51 @@ func (fuo *FeedsUpdateOne) sqlSave(ctx context.Context) (_node *Feeds, err error
 	}
 	if value, ok := fuo.mutation.URL(); ok {
 		_spec.SetField(feeds.FieldURL, field.TypeString, value)
+	}
+	if fuo.mutation.EntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   feeds.EntriesTable,
+			Columns: []string{feeds.EntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(entries.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := fuo.mutation.RemovedEntriesIDs(); len(nodes) > 0 && !fuo.mutation.EntriesCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   feeds.EntriesTable,
+			Columns: []string{feeds.EntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(entries.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := fuo.mutation.EntriesIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: false,
+			Table:   feeds.EntriesTable,
+			Columns: []string{feeds.EntriesColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(entries.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Feeds{config: fuo.config}
 	_spec.Assign = _node.assignValues
