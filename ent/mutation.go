@@ -40,6 +40,8 @@ type EntriesMutation struct {
 	description   *string
 	url           *string
 	clearedFields map[string]struct{}
+	feeds         *int
+	clearedfeeds  bool
 	done          bool
 	oldValue      func(context.Context) (*Entries, error)
 	predicates    []predicate.Entries
@@ -251,6 +253,45 @@ func (m *EntriesMutation) ResetURL() {
 	m.url = nil
 }
 
+// SetFeedsID sets the "feeds" edge to the Feeds entity by id.
+func (m *EntriesMutation) SetFeedsID(id int) {
+	m.feeds = &id
+}
+
+// ClearFeeds clears the "feeds" edge to the Feeds entity.
+func (m *EntriesMutation) ClearFeeds() {
+	m.clearedfeeds = true
+}
+
+// FeedsCleared reports if the "feeds" edge to the Feeds entity was cleared.
+func (m *EntriesMutation) FeedsCleared() bool {
+	return m.clearedfeeds
+}
+
+// FeedsID returns the "feeds" edge ID in the mutation.
+func (m *EntriesMutation) FeedsID() (id int, exists bool) {
+	if m.feeds != nil {
+		return *m.feeds, true
+	}
+	return
+}
+
+// FeedsIDs returns the "feeds" edge IDs in the mutation.
+// Note that IDs always returns len(IDs) <= 1 for unique edges, and you should use
+// FeedsID instead. It exists only for internal usage by the builders.
+func (m *EntriesMutation) FeedsIDs() (ids []int) {
+	if id := m.feeds; id != nil {
+		ids = append(ids, *id)
+	}
+	return
+}
+
+// ResetFeeds resets all changes to the "feeds" edge.
+func (m *EntriesMutation) ResetFeeds() {
+	m.feeds = nil
+	m.clearedfeeds = false
+}
+
 // Where appends a list predicates to the EntriesMutation builder.
 func (m *EntriesMutation) Where(ps ...predicate.Entries) {
 	m.predicates = append(m.predicates, ps...)
@@ -418,19 +459,28 @@ func (m *EntriesMutation) ResetField(name string) error {
 
 // AddedEdges returns all edge names that were set/added in this mutation.
 func (m *EntriesMutation) AddedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.feeds != nil {
+		edges = append(edges, entries.EdgeFeeds)
+	}
 	return edges
 }
 
 // AddedIDs returns all IDs (to other nodes) that were added for the given edge
 // name in this mutation.
 func (m *EntriesMutation) AddedIDs(name string) []ent.Value {
+	switch name {
+	case entries.EdgeFeeds:
+		if id := m.feeds; id != nil {
+			return []ent.Value{*id}
+		}
+	}
 	return nil
 }
 
 // RemovedEdges returns all edge names that were removed in this mutation.
 func (m *EntriesMutation) RemovedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
 	return edges
 }
 
@@ -442,25 +492,42 @@ func (m *EntriesMutation) RemovedIDs(name string) []ent.Value {
 
 // ClearedEdges returns all edge names that were cleared in this mutation.
 func (m *EntriesMutation) ClearedEdges() []string {
-	edges := make([]string, 0, 0)
+	edges := make([]string, 0, 1)
+	if m.clearedfeeds {
+		edges = append(edges, entries.EdgeFeeds)
+	}
 	return edges
 }
 
 // EdgeCleared returns a boolean which indicates if the edge with the given name
 // was cleared in this mutation.
 func (m *EntriesMutation) EdgeCleared(name string) bool {
+	switch name {
+	case entries.EdgeFeeds:
+		return m.clearedfeeds
+	}
 	return false
 }
 
 // ClearEdge clears the value of the edge with the given name. It returns an error
 // if that edge is not defined in the schema.
 func (m *EntriesMutation) ClearEdge(name string) error {
+	switch name {
+	case entries.EdgeFeeds:
+		m.ClearFeeds()
+		return nil
+	}
 	return fmt.Errorf("unknown Entries unique edge %s", name)
 }
 
 // ResetEdge resets all changes to the edge with the given name in this mutation.
 // It returns an error if the edge is not defined in the schema.
 func (m *EntriesMutation) ResetEdge(name string) error {
+	switch name {
+	case entries.EdgeFeeds:
+		m.ResetFeeds()
+		return nil
+	}
 	return fmt.Errorf("unknown Entries edge %s", name)
 }
 

@@ -29,6 +29,13 @@ var (
 				OnDelete:   schema.SetNull,
 			},
 		},
+		Indexes: []*schema.Index{
+			{
+				Name:    "entries_url_feeds_entries",
+				Unique:  true,
+				Columns: []*schema.Column{EntriesColumns[3], EntriesColumns[4]},
+			},
+		},
 	}
 	// FeedsColumns holds the columns for the "feeds" table.
 	FeedsColumns = []*schema.Column{

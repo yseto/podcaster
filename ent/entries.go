@@ -9,6 +9,7 @@ import (
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
 	"github.com/yseto/podcaster/ent/entries"
+	"github.com/yseto/podcaster/ent/feeds"
 )
 
 // Entries is the model entity for the Entries schema.
@@ -21,9 +22,32 @@ type Entries struct {
 	// Description holds the value of the "description" field.
 	Description string `json:"description,omitempty"`
 	// URL holds the value of the "url" field.
-	URL           string `json:"url,omitempty"`
+	URL string `json:"url,omitempty"`
+	// Edges holds the relations/edges for other nodes in the graph.
+	// The values are being populated by the EntriesQuery when eager-loading is set.
+	Edges         EntriesEdges `json:"edges"`
 	feeds_entries *int
 	selectValues  sql.SelectValues
+}
+
+// EntriesEdges holds the relations/edges for other nodes in the graph.
+type EntriesEdges struct {
+	// Feeds holds the value of the feeds edge.
+	Feeds *Feeds `json:"feeds,omitempty"`
+	// loadedTypes holds the information for reporting if a
+	// type was loaded (or requested) in eager-loading or not.
+	loadedTypes [1]bool
+}
+
+// FeedsOrErr returns the Feeds value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e EntriesEdges) FeedsOrErr() (*Feeds, error) {
+	if e.Feeds != nil {
+		return e.Feeds, nil
+	} else if e.loadedTypes[0] {
+		return nil, &NotFoundError{label: feeds.Label}
+	}
+	return nil, &NotLoadedError{edge: "feeds"}
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -94,6 +118,11 @@ func (e *Entries) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (e *Entries) Value(name string) (ent.Value, error) {
 	return e.selectValues.Get(name)
+}
+
+// QueryFeeds queries the "feeds" edge of the Entries entity.
+func (e *Entries) QueryFeeds() *FeedsQuery {
+	return NewEntriesClient(e.config).QueryFeeds(e)
 }
 
 // Update returns a builder for updating this Entries.

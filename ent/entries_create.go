@@ -10,6 +10,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/yseto/podcaster/ent/entries"
+	"github.com/yseto/podcaster/ent/feeds"
 )
 
 // EntriesCreate is the builder for creating a Entries entity.
@@ -35,6 +36,25 @@ func (ec *EntriesCreate) SetDescription(s string) *EntriesCreate {
 func (ec *EntriesCreate) SetURL(s string) *EntriesCreate {
 	ec.mutation.SetURL(s)
 	return ec
+}
+
+// SetFeedsID sets the "feeds" edge to the Feeds entity by ID.
+func (ec *EntriesCreate) SetFeedsID(id int) *EntriesCreate {
+	ec.mutation.SetFeedsID(id)
+	return ec
+}
+
+// SetNillableFeedsID sets the "feeds" edge to the Feeds entity by ID if the given value is not nil.
+func (ec *EntriesCreate) SetNillableFeedsID(id *int) *EntriesCreate {
+	if id != nil {
+		ec = ec.SetFeedsID(*id)
+	}
+	return ec
+}
+
+// SetFeeds sets the "feeds" edge to the Feeds entity.
+func (ec *EntriesCreate) SetFeeds(f *Feeds) *EntriesCreate {
+	return ec.SetFeedsID(f.ID)
 }
 
 // Mutation returns the EntriesMutation object of the builder.
@@ -117,6 +137,23 @@ func (ec *EntriesCreate) createSpec() (*Entries, *sqlgraph.CreateSpec) {
 	if value, ok := ec.mutation.URL(); ok {
 		_spec.SetField(entries.FieldURL, field.TypeString, value)
 		_node.URL = value
+	}
+	if nodes := ec.mutation.FeedsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   entries.FeedsTable,
+			Columns: []string{entries.FeedsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(feeds.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.feeds_entries = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
 	}
 	return _node, _spec
 }

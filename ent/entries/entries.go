@@ -4,6 +4,7 @@ package entries
 
 import (
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 )
 
 const (
@@ -17,8 +18,17 @@ const (
 	FieldDescription = "description"
 	// FieldURL holds the string denoting the url field in the database.
 	FieldURL = "url"
+	// EdgeFeeds holds the string denoting the feeds edge name in mutations.
+	EdgeFeeds = "feeds"
 	// Table holds the table name of the entries in the database.
 	Table = "entries"
+	// FeedsTable is the table that holds the feeds relation/edge.
+	FeedsTable = "entries"
+	// FeedsInverseTable is the table name for the Feeds entity.
+	// It exists in this package in order to avoid circular dependency with the "feeds" package.
+	FeedsInverseTable = "feeds"
+	// FeedsColumn is the table column denoting the feeds relation/edge.
+	FeedsColumn = "feeds_entries"
 )
 
 // Columns holds all SQL columns for entries fields.
@@ -71,4 +81,18 @@ func ByDescription(opts ...sql.OrderTermOption) OrderOption {
 // ByURL orders the results by the url field.
 func ByURL(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldURL, opts...).ToFunc()
+}
+
+// ByFeedsField orders the results by feeds field.
+func ByFeedsField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newFeedsStep(), sql.OrderByField(field, opts...))
+	}
+}
+func newFeedsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(FeedsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, true, FeedsTable, FeedsColumn),
+	)
 }

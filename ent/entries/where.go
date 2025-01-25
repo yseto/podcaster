@@ -4,6 +4,7 @@ package entries
 
 import (
 	"entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqlgraph"
 	"github.com/yseto/podcaster/ent/predicate"
 )
 
@@ -260,6 +261,29 @@ func URLEqualFold(v string) predicate.Entries {
 // URLContainsFold applies the ContainsFold predicate on the "url" field.
 func URLContainsFold(v string) predicate.Entries {
 	return predicate.Entries(sql.FieldContainsFold(FieldURL, v))
+}
+
+// HasFeeds applies the HasEdge predicate on the "feeds" edge.
+func HasFeeds() predicate.Entries {
+	return predicate.Entries(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, FeedsTable, FeedsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasFeedsWith applies the HasEdge predicate on the "feeds" edge with a given conditions (other predicates).
+func HasFeedsWith(preds ...predicate.Feeds) predicate.Entries {
+	return predicate.Entries(func(s *sql.Selector) {
+		step := newFeedsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
 }
 
 // And groups predicates with the AND operator between them.

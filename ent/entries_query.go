@@ -12,6 +12,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/yseto/podcaster/ent/entries"
+	"github.com/yseto/podcaster/ent/feeds"
 	"github.com/yseto/podcaster/ent/predicate"
 )
 
@@ -22,6 +23,7 @@ type EntriesQuery struct {
 	order      []entries.OrderOption
 	inters     []Interceptor
 	predicates []predicate.Entries
+	withFeeds  *FeedsQuery
 	withFKs    bool
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
@@ -57,6 +59,28 @@ func (eq *EntriesQuery) Unique(unique bool) *EntriesQuery {
 func (eq *EntriesQuery) Order(o ...entries.OrderOption) *EntriesQuery {
 	eq.order = append(eq.order, o...)
 	return eq
+}
+
+// QueryFeeds chains the current query on the "feeds" edge.
+func (eq *EntriesQuery) QueryFeeds() *FeedsQuery {
+	query := (&FeedsClient{config: eq.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := eq.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := eq.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(entries.Table, entries.FieldID, selector),
+			sqlgraph.To(feeds.Table, feeds.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, entries.FeedsTable, entries.FeedsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(eq.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
 }
 
 // First returns the first Entries entity from the query.
@@ -251,10 +275,22 @@ func (eq *EntriesQuery) Clone() *EntriesQuery {
 		order:      append([]entries.OrderOption{}, eq.order...),
 		inters:     append([]Interceptor{}, eq.inters...),
 		predicates: append([]predicate.Entries{}, eq.predicates...),
+		withFeeds:  eq.withFeeds.Clone(),
 		// clone intermediate query.
 		sql:  eq.sql.Clone(),
 		path: eq.path,
 	}
+}
+
+// WithFeeds tells the query-builder to eager-load the nodes that are connected to
+// the "feeds" edge. The optional arguments are used to configure the query builder of the edge.
+func (eq *EntriesQuery) WithFeeds(opts ...func(*FeedsQuery)) *EntriesQuery {
+	query := (&FeedsClient{config: eq.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	eq.withFeeds = query
+	return eq
 }
 
 // GroupBy is used to group vertices by one or more fields/columns.
@@ -333,10 +369,16 @@ func (eq *EntriesQuery) prepareQuery(ctx context.Context) error {
 
 func (eq *EntriesQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Entries, error) {
 	var (
-		nodes   = []*Entries{}
-		withFKs = eq.withFKs
-		_spec   = eq.querySpec()
+		nodes       = []*Entries{}
+		withFKs     = eq.withFKs
+		_spec       = eq.querySpec()
+		loadedTypes = [1]bool{
+			eq.withFeeds != nil,
+		}
 	)
+	if eq.withFeeds != nil {
+		withFKs = true
+	}
 	if withFKs {
 		_spec.Node.Columns = append(_spec.Node.Columns, entries.ForeignKeys...)
 	}
@@ -346,6 +388,7 @@ func (eq *EntriesQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Entr
 	_spec.Assign = func(columns []string, values []any) error {
 		node := &Entries{config: eq.config}
 		nodes = append(nodes, node)
+		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
 	for i := range hooks {
@@ -357,7 +400,46 @@ func (eq *EntriesQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Entr
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
+	if query := eq.withFeeds; query != nil {
+		if err := eq.loadFeeds(ctx, query, nodes, nil,
+			func(n *Entries, e *Feeds) { n.Edges.Feeds = e }); err != nil {
+			return nil, err
+		}
+	}
 	return nodes, nil
+}
+
+func (eq *EntriesQuery) loadFeeds(ctx context.Context, query *FeedsQuery, nodes []*Entries, init func(*Entries), assign func(*Entries, *Feeds)) error {
+	ids := make([]int, 0, len(nodes))
+	nodeids := make(map[int][]*Entries)
+	for i := range nodes {
+		if nodes[i].feeds_entries == nil {
+			continue
+		}
+		fk := *nodes[i].feeds_entries
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(feeds.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "feeds_entries" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
 }
 
 func (eq *EntriesQuery) sqlCount(ctx context.Context) (int, error) {

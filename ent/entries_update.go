@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
 	"github.com/yseto/podcaster/ent/entries"
+	"github.com/yseto/podcaster/ent/feeds"
 	"github.com/yseto/podcaster/ent/predicate"
 )
 
@@ -69,9 +70,34 @@ func (eu *EntriesUpdate) SetNillableURL(s *string) *EntriesUpdate {
 	return eu
 }
 
+// SetFeedsID sets the "feeds" edge to the Feeds entity by ID.
+func (eu *EntriesUpdate) SetFeedsID(id int) *EntriesUpdate {
+	eu.mutation.SetFeedsID(id)
+	return eu
+}
+
+// SetNillableFeedsID sets the "feeds" edge to the Feeds entity by ID if the given value is not nil.
+func (eu *EntriesUpdate) SetNillableFeedsID(id *int) *EntriesUpdate {
+	if id != nil {
+		eu = eu.SetFeedsID(*id)
+	}
+	return eu
+}
+
+// SetFeeds sets the "feeds" edge to the Feeds entity.
+func (eu *EntriesUpdate) SetFeeds(f *Feeds) *EntriesUpdate {
+	return eu.SetFeedsID(f.ID)
+}
+
 // Mutation returns the EntriesMutation object of the builder.
 func (eu *EntriesUpdate) Mutation() *EntriesMutation {
 	return eu.mutation
+}
+
+// ClearFeeds clears the "feeds" edge to the Feeds entity.
+func (eu *EntriesUpdate) ClearFeeds() *EntriesUpdate {
+	eu.mutation.ClearFeeds()
+	return eu
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -118,6 +144,35 @@ func (eu *EntriesUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if value, ok := eu.mutation.URL(); ok {
 		_spec.SetField(entries.FieldURL, field.TypeString, value)
+	}
+	if eu.mutation.FeedsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   entries.FeedsTable,
+			Columns: []string{entries.FeedsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(feeds.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := eu.mutation.FeedsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   entries.FeedsTable,
+			Columns: []string{entries.FeedsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(feeds.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if n, err = sqlgraph.UpdateNodes(ctx, eu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -181,9 +236,34 @@ func (euo *EntriesUpdateOne) SetNillableURL(s *string) *EntriesUpdateOne {
 	return euo
 }
 
+// SetFeedsID sets the "feeds" edge to the Feeds entity by ID.
+func (euo *EntriesUpdateOne) SetFeedsID(id int) *EntriesUpdateOne {
+	euo.mutation.SetFeedsID(id)
+	return euo
+}
+
+// SetNillableFeedsID sets the "feeds" edge to the Feeds entity by ID if the given value is not nil.
+func (euo *EntriesUpdateOne) SetNillableFeedsID(id *int) *EntriesUpdateOne {
+	if id != nil {
+		euo = euo.SetFeedsID(*id)
+	}
+	return euo
+}
+
+// SetFeeds sets the "feeds" edge to the Feeds entity.
+func (euo *EntriesUpdateOne) SetFeeds(f *Feeds) *EntriesUpdateOne {
+	return euo.SetFeedsID(f.ID)
+}
+
 // Mutation returns the EntriesMutation object of the builder.
 func (euo *EntriesUpdateOne) Mutation() *EntriesMutation {
 	return euo.mutation
+}
+
+// ClearFeeds clears the "feeds" edge to the Feeds entity.
+func (euo *EntriesUpdateOne) ClearFeeds() *EntriesUpdateOne {
+	euo.mutation.ClearFeeds()
+	return euo
 }
 
 // Where appends a list predicates to the EntriesUpdate builder.
@@ -260,6 +340,35 @@ func (euo *EntriesUpdateOne) sqlSave(ctx context.Context) (_node *Entries, err e
 	}
 	if value, ok := euo.mutation.URL(); ok {
 		_spec.SetField(entries.FieldURL, field.TypeString, value)
+	}
+	if euo.mutation.FeedsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   entries.FeedsTable,
+			Columns: []string{entries.FeedsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(feeds.FieldID, field.TypeInt),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := euo.mutation.FeedsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: true,
+			Table:   entries.FeedsTable,
+			Columns: []string{entries.FeedsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(feeds.FieldID, field.TypeInt),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	_node = &Entries{config: euo.config}
 	_spec.Assign = _node.assignValues

@@ -325,6 +325,22 @@ func (c *EntriesClient) GetX(ctx context.Context, id int) *Entries {
 	return obj
 }
 
+// QueryFeeds queries the feeds edge of a Entries.
+func (c *EntriesClient) QueryFeeds(e *Entries) *FeedsQuery {
+	query := (&FeedsClient{config: c.config}).Query()
+	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
+		id := e.ID
+		step := sqlgraph.NewStep(
+			sqlgraph.From(entries.Table, entries.FieldID, id),
+			sqlgraph.To(feeds.Table, feeds.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, true, entries.FeedsTable, entries.FeedsColumn),
+		)
+		fromV = sqlgraph.Neighbors(e.driver.Dialect(), step)
+		return fromV, nil
+	}
+	return query
+}
+
 // Hooks returns the client hooks.
 func (c *EntriesClient) Hooks() []Hook {
 	return c.hooks.Entries
