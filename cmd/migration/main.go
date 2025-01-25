@@ -13,7 +13,7 @@ import (
 )
 
 func main() {
-	dataSourceName := "sqlite3://testdb?mode=memory&_fk=1"
+	dataSourceName := "sqlite3://test.db?_fk=1"
 	ctx := context.Background()
 
 	dir, err := atlas.NewLocalDir("ent/migrate/migrations")
