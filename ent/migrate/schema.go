@@ -28,7 +28,7 @@ var (
 				Symbol:     "entries_feeds_entries",
 				Columns:    []*schema.Column{EntriesColumns[6]},
 				RefColumns: []*schema.Column{FeedsColumns[0]},
-				OnDelete:   schema.SetNull,
+				OnDelete:   schema.Cascade,
 			},
 		},
 		Indexes: []*schema.Index{
