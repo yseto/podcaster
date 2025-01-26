@@ -2,6 +2,7 @@ package schema
 
 import (
 	"entgo.io/ent"
+	"entgo.io/ent/dialect/entsql"
 	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 )
@@ -22,6 +23,7 @@ func (Feeds) Fields() []ent.Field {
 // Edges of the Feeds.
 func (Feeds) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.To("entries", Entries.Type),
+		edge.To("entries", Entries.Type).
+			Annotations(entsql.OnDelete(entsql.Cascade)),
 	}
 }
