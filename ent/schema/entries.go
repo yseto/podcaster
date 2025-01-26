@@ -21,6 +21,7 @@ func (Entries) Fields() []ent.Field {
 		field.String("description"),
 		field.String("url"),
 		field.Time("published_at").Default(time.Now()).Optional(),
+		field.Bool("new").Default(true),
 	}
 }
 
