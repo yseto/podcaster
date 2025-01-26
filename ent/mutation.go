@@ -41,6 +41,7 @@ type EntriesMutation struct {
 	description   *string
 	url           *string
 	published_at  *time.Time
+	new           *bool
 	clearedFields map[string]struct{}
 	feeds         *int
 	clearedfeeds  bool
@@ -304,6 +305,42 @@ func (m *EntriesMutation) ResetPublishedAt() {
 	delete(m.clearedFields, entries.FieldPublishedAt)
 }
 
+// SetNew sets the "new" field.
+func (m *EntriesMutation) SetNew(b bool) {
+	m.new = &b
+}
+
+// New returns the value of the "new" field in the mutation.
+func (m *EntriesMutation) New() (r bool, exists bool) {
+	v := m.new
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNew returns the old "new" field's value of the Entries entity.
+// If the Entries object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *EntriesMutation) OldNew(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNew is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNew requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNew: %w", err)
+	}
+	return oldValue.New, nil
+}
+
+// ResetNew resets all changes to the "new" field.
+func (m *EntriesMutation) ResetNew() {
+	m.new = nil
+}
+
 // SetFeedsID sets the "feeds" edge to the Feeds entity by id.
 func (m *EntriesMutation) SetFeedsID(id int) {
 	m.feeds = &id
@@ -377,7 +414,7 @@ func (m *EntriesMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *EntriesMutation) Fields() []string {
-	fields := make([]string, 0, 4)
+	fields := make([]string, 0, 5)
 	if m.title != nil {
 		fields = append(fields, entries.FieldTitle)
 	}
@@ -389,6 +426,9 @@ func (m *EntriesMutation) Fields() []string {
 	}
 	if m.published_at != nil {
 		fields = append(fields, entries.FieldPublishedAt)
+	}
+	if m.new != nil {
+		fields = append(fields, entries.FieldNew)
 	}
 	return fields
 }
@@ -406,6 +446,8 @@ func (m *EntriesMutation) Field(name string) (ent.Value, bool) {
 		return m.URL()
 	case entries.FieldPublishedAt:
 		return m.PublishedAt()
+	case entries.FieldNew:
+		return m.New()
 	}
 	return nil, false
 }
@@ -423,6 +465,8 @@ func (m *EntriesMutation) OldField(ctx context.Context, name string) (ent.Value,
 		return m.OldURL(ctx)
 	case entries.FieldPublishedAt:
 		return m.OldPublishedAt(ctx)
+	case entries.FieldNew:
+		return m.OldNew(ctx)
 	}
 	return nil, fmt.Errorf("unknown Entries field %s", name)
 }
@@ -459,6 +503,13 @@ func (m *EntriesMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetPublishedAt(v)
+		return nil
+	case entries.FieldNew:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNew(v)
 		return nil
 	}
 	return fmt.Errorf("unknown Entries field %s", name)
@@ -529,6 +580,9 @@ func (m *EntriesMutation) ResetField(name string) error {
 		return nil
 	case entries.FieldPublishedAt:
 		m.ResetPublishedAt()
+		return nil
+	case entries.FieldNew:
+		m.ResetNew()
 		return nil
 	}
 	return fmt.Errorf("unknown Entries field %s", name)

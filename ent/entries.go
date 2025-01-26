@@ -26,6 +26,8 @@ type Entries struct {
 	URL string `json:"url,omitempty"`
 	// PublishedAt holds the value of the "published_at" field.
 	PublishedAt time.Time `json:"published_at,omitempty"`
+	// New holds the value of the "new" field.
+	New bool `json:"new,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the EntriesQuery when eager-loading is set.
 	Edges         EntriesEdges `json:"edges"`
@@ -58,6 +60,8 @@ func (*Entries) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
+		case entries.FieldNew:
+			values[i] = new(sql.NullBool)
 		case entries.FieldID:
 			values[i] = new(sql.NullInt64)
 		case entries.FieldTitle, entries.FieldDescription, entries.FieldURL:
@@ -110,6 +114,12 @@ func (e *Entries) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field published_at", values[i])
 			} else if value.Valid {
 				e.PublishedAt = value.Time
+			}
+		case entries.FieldNew:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field new", values[i])
+			} else if value.Valid {
+				e.New = value.Bool
 			}
 		case entries.ForeignKeys[0]:
 			if value, ok := values[i].(*sql.NullInt64); !ok {
@@ -170,6 +180,9 @@ func (e *Entries) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("published_at=")
 	builder.WriteString(e.PublishedAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("new=")
+	builder.WriteString(fmt.Sprintf("%v", e.New))
 	builder.WriteByte(')')
 	return builder.String()
 }

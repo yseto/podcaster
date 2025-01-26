@@ -53,6 +53,20 @@ func (ec *EntriesCreate) SetNillablePublishedAt(t *time.Time) *EntriesCreate {
 	return ec
 }
 
+// SetNew sets the "new" field.
+func (ec *EntriesCreate) SetNew(b bool) *EntriesCreate {
+	ec.mutation.SetNew(b)
+	return ec
+}
+
+// SetNillableNew sets the "new" field if the given value is not nil.
+func (ec *EntriesCreate) SetNillableNew(b *bool) *EntriesCreate {
+	if b != nil {
+		ec.SetNew(*b)
+	}
+	return ec
+}
+
 // SetFeedsID sets the "feeds" edge to the Feeds entity by ID.
 func (ec *EntriesCreate) SetFeedsID(id int) *EntriesCreate {
 	ec.mutation.SetFeedsID(id)
@@ -111,6 +125,10 @@ func (ec *EntriesCreate) defaults() {
 		v := entries.DefaultPublishedAt
 		ec.mutation.SetPublishedAt(v)
 	}
+	if _, ok := ec.mutation.New(); !ok {
+		v := entries.DefaultNew
+		ec.mutation.SetNew(v)
+	}
 }
 
 // check runs all checks and user-defined validators on the builder.
@@ -123,6 +141,9 @@ func (ec *EntriesCreate) check() error {
 	}
 	if _, ok := ec.mutation.URL(); !ok {
 		return &ValidationError{Name: "url", err: errors.New(`ent: missing required field "Entries.url"`)}
+	}
+	if _, ok := ec.mutation.New(); !ok {
+		return &ValidationError{Name: "new", err: errors.New(`ent: missing required field "Entries.new"`)}
 	}
 	return nil
 }
@@ -165,6 +186,10 @@ func (ec *EntriesCreate) createSpec() (*Entries, *sqlgraph.CreateSpec) {
 	if value, ok := ec.mutation.PublishedAt(); ok {
 		_spec.SetField(entries.FieldPublishedAt, field.TypeTime, value)
 		_node.PublishedAt = value
+	}
+	if value, ok := ec.mutation.New(); ok {
+		_spec.SetField(entries.FieldNew, field.TypeBool, value)
+		_node.New = value
 	}
 	if nodes := ec.mutation.FeedsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

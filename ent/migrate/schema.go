@@ -15,6 +15,7 @@ var (
 		{Name: "description", Type: field.TypeString},
 		{Name: "url", Type: field.TypeString},
 		{Name: "published_at", Type: field.TypeTime, Nullable: true},
+		{Name: "new", Type: field.TypeBool, Default: true},
 		{Name: "feeds_entries", Type: field.TypeInt, Nullable: true},
 	}
 	// EntriesTable holds the schema information for the "entries" table.
@@ -25,7 +26,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "entries_feeds_entries",
-				Columns:    []*schema.Column{EntriesColumns[5]},
+				Columns:    []*schema.Column{EntriesColumns[6]},
 				RefColumns: []*schema.Column{FeedsColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
@@ -34,7 +35,7 @@ var (
 			{
 				Name:    "entries_url_feeds_entries",
 				Unique:  true,
-				Columns: []*schema.Column{EntriesColumns[3], EntriesColumns[5]},
+				Columns: []*schema.Column{EntriesColumns[3], EntriesColumns[6]},
 			},
 		},
 	}

@@ -19,4 +19,8 @@ func init() {
 	entriesDescPublishedAt := entriesFields[3].Descriptor()
 	// entries.DefaultPublishedAt holds the default value on creation for the published_at field.
 	entries.DefaultPublishedAt = entriesDescPublishedAt.Default.(time.Time)
+	// entriesDescNew is the schema descriptor for new field.
+	entriesDescNew := entriesFields[4].Descriptor()
+	// entries.DefaultNew holds the default value on creation for the new field.
+	entries.DefaultNew = entriesDescNew.Default.(bool)
 }

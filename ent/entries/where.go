@@ -75,6 +75,11 @@ func PublishedAt(v time.Time) predicate.Entries {
 	return predicate.Entries(sql.FieldEQ(FieldPublishedAt, v))
 }
 
+// New applies equality check predicate on the "new" field. It's identical to NewEQ.
+func New(v bool) predicate.Entries {
+	return predicate.Entries(sql.FieldEQ(FieldNew, v))
+}
+
 // TitleEQ applies the EQ predicate on the "title" field.
 func TitleEQ(v string) predicate.Entries {
 	return predicate.Entries(sql.FieldEQ(FieldTitle, v))
@@ -318,6 +323,16 @@ func PublishedAtIsNil() predicate.Entries {
 // PublishedAtNotNil applies the NotNil predicate on the "published_at" field.
 func PublishedAtNotNil() predicate.Entries {
 	return predicate.Entries(sql.FieldNotNull(FieldPublishedAt))
+}
+
+// NewEQ applies the EQ predicate on the "new" field.
+func NewEQ(v bool) predicate.Entries {
+	return predicate.Entries(sql.FieldEQ(FieldNew, v))
+}
+
+// NewNEQ applies the NEQ predicate on the "new" field.
+func NewNEQ(v bool) predicate.Entries {
+	return predicate.Entries(sql.FieldNEQ(FieldNew, v))
 }
 
 // HasFeeds applies the HasEdge predicate on the "feeds" edge.

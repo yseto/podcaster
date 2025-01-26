@@ -91,6 +91,20 @@ func (eu *EntriesUpdate) ClearPublishedAt() *EntriesUpdate {
 	return eu
 }
 
+// SetNew sets the "new" field.
+func (eu *EntriesUpdate) SetNew(b bool) *EntriesUpdate {
+	eu.mutation.SetNew(b)
+	return eu
+}
+
+// SetNillableNew sets the "new" field if the given value is not nil.
+func (eu *EntriesUpdate) SetNillableNew(b *bool) *EntriesUpdate {
+	if b != nil {
+		eu.SetNew(*b)
+	}
+	return eu
+}
+
 // SetFeedsID sets the "feeds" edge to the Feeds entity by ID.
 func (eu *EntriesUpdate) SetFeedsID(id int) *EntriesUpdate {
 	eu.mutation.SetFeedsID(id)
@@ -171,6 +185,9 @@ func (eu *EntriesUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	}
 	if eu.mutation.PublishedAtCleared() {
 		_spec.ClearField(entries.FieldPublishedAt, field.TypeTime)
+	}
+	if value, ok := eu.mutation.New(); ok {
+		_spec.SetField(entries.FieldNew, field.TypeBool, value)
 	}
 	if eu.mutation.FeedsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -280,6 +297,20 @@ func (euo *EntriesUpdateOne) SetNillablePublishedAt(t *time.Time) *EntriesUpdate
 // ClearPublishedAt clears the value of the "published_at" field.
 func (euo *EntriesUpdateOne) ClearPublishedAt() *EntriesUpdateOne {
 	euo.mutation.ClearPublishedAt()
+	return euo
+}
+
+// SetNew sets the "new" field.
+func (euo *EntriesUpdateOne) SetNew(b bool) *EntriesUpdateOne {
+	euo.mutation.SetNew(b)
+	return euo
+}
+
+// SetNillableNew sets the "new" field if the given value is not nil.
+func (euo *EntriesUpdateOne) SetNillableNew(b *bool) *EntriesUpdateOne {
+	if b != nil {
+		euo.SetNew(*b)
+	}
 	return euo
 }
 
@@ -393,6 +424,9 @@ func (euo *EntriesUpdateOne) sqlSave(ctx context.Context) (_node *Entries, err e
 	}
 	if euo.mutation.PublishedAtCleared() {
 		_spec.ClearField(entries.FieldPublishedAt, field.TypeTime)
+	}
+	if value, ok := euo.mutation.New(); ok {
+		_spec.SetField(entries.FieldNew, field.TypeBool, value)
 	}
 	if euo.mutation.FeedsCleared() {
 		edge := &sqlgraph.EdgeSpec{

@@ -22,6 +22,8 @@ const (
 	FieldURL = "url"
 	// FieldPublishedAt holds the string denoting the published_at field in the database.
 	FieldPublishedAt = "published_at"
+	// FieldNew holds the string denoting the new field in the database.
+	FieldNew = "new"
 	// EdgeFeeds holds the string denoting the feeds edge name in mutations.
 	EdgeFeeds = "feeds"
 	// Table holds the table name of the entries in the database.
@@ -42,6 +44,7 @@ var Columns = []string{
 	FieldDescription,
 	FieldURL,
 	FieldPublishedAt,
+	FieldNew,
 }
 
 // ForeignKeys holds the SQL foreign-keys that are owned by the "entries"
@@ -68,6 +71,8 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultPublishedAt holds the default value on creation for the "published_at" field.
 	DefaultPublishedAt time.Time
+	// DefaultNew holds the default value on creation for the "new" field.
+	DefaultNew bool
 )
 
 // OrderOption defines the ordering options for the Entries queries.
@@ -96,6 +101,11 @@ func ByURL(opts ...sql.OrderTermOption) OrderOption {
 // ByPublishedAt orders the results by the published_at field.
 func ByPublishedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldPublishedAt, opts...).ToFunc()
+}
+
+// ByNew orders the results by the new field.
+func ByNew(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldNew, opts...).ToFunc()
 }
 
 // ByFeedsField orders the results by feeds field.
