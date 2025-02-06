@@ -17,6 +17,9 @@
         <li v-for="(item, index) in subscriptions" :key="index" class="list-group-item">
           <a class="link-primary" style="cursor: pointer" :data-index="index" @click="openSubscription">{{ item.title
             }}</a>
+            <span class="badge badge-light" v-if="item.new_entry_count>0">
+              {{ item.new_entry_count }}
+            </span>
           <div class="float-right">
             <a class="btn btn-sm btn-warning" @click="deleteSubscriptionPre" :data-index="index">削除</a>
           </div>
@@ -85,6 +88,7 @@ type Subscription = {
   id: number
   title: string
   url: string
+  new_entry_count: number
 }
 
 type Episode = {

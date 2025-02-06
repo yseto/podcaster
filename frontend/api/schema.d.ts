@@ -20,7 +20,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/{filename}": {
+    "/app.js": {
         parameters: {
             query?: never;
             header?: never;
@@ -150,6 +150,7 @@ export interface components {
             id: number;
             title: string;
             url: string;
+            new_entry_count: number;
         };
     };
     responses: never;
@@ -184,9 +185,7 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                filename: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
