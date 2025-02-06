@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -281,20 +282,45 @@ func (s *server) Subscriptions(ctx context.Context, request api.SubscriptionsReq
 		return nil, err
 	}
 
-	feeds, err := u.QueryFeeds().All(ctx)
-	if err != nil {
-		if ent.IsNotFound(err) {
-			return api.Subscriptions200JSONResponse{}, nil
-		}
-		return nil, err
+	// https://entgo.io/ja/docs/feature-flags/#modify-example-4
+	/*
+		SELECT `feeds`.`id`, `feeds`.`title`, `feeds`.`url`, COUNT(`t1`.`new`OR NULL) AS `new_count`
+		FROM `feeds`
+		LEFT JOIN `entries` AS `t1` ON `feeds`.`id` = `t1`.`feeds_entries`
+		WHERE `users_feeds` = ? GROUP BY `feeds`.`id` args=[?]
+	*/
+
+	var values []struct {
+		ent.Feeds
+		NewCount int `sql:"new_count"`
 	}
 
+	defer func() {
+		if rec := recover(); rec != nil {
+			err = fmt.Errorf("recovered from: %v", rec)
+		}
+	}()
+
+	u.QueryFeeds().
+		Modify(func(s *sql.Selector) {
+			t := sql.Table(entries.Table)
+			s.LeftJoin(t).On(
+				s.C(feeds.FieldID),
+				t.C(entries.FeedsColumn),
+			).
+				AppendSelect(
+					sql.As(sql.Count(t.C(entries.FieldNew)+" OR NULL"), "new_count"),
+				).
+				GroupBy(s.C(feeds.FieldID))
+		}).ScanX(ctx, &values)
+
 	var respFeeds []api.Subscription
-	for _, feed := range feeds {
+	for _, feed := range values {
 		respFeeds = append(respFeeds, api.Subscription{
-			ID:    uint64(feed.ID),
-			Title: feed.Title,
-			Url:   feed.URL,
+			ID:            uint64(feed.ID),
+			Title:         feed.Title,
+			Url:           feed.URL,
+			NewEntryCount: feed.NewCount,
 		})
 	}
 
