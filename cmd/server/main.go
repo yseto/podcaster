@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"flag"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -15,15 +17,24 @@ import (
 
 func main() {
 	port := flag.String("port", "8080", "port where to serve traffic")
+	migrate := flag.Bool("migrate", false, "migration db on init")
+	dbPath := flag.String("db-file", "test.db", "sqlite3 file path")
 	flag.Parse()
 
 	r := http.NewServeMux()
 
-	client, err := ent.Open("sqlite3", "test.db?_fk=1")
+	client, err := ent.Open("sqlite3", fmt.Sprintf("%s?_fk=1", *dbPath))
 	if err != nil {
 		log.Fatalf("failed opening connection to postgres: %v", err)
 	}
 	defer client.Close()
+
+	if *migrate {
+		if err := client.Schema.Create(context.Background()); err != nil {
+			log.Fatalf("failed creating schema resources: %v", err)
+		}
+		log.Println("migrate done")
+	}
 
 	svr := server.NewServer(client)
 	h := api.HandlerFromMux(api.NewStrictHandler(svr, nil), r)
