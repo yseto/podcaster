@@ -188,6 +188,7 @@ components:
       - id
       - title
       - url
+      - new_entry_count
       properties:
         id:
           type: integer
@@ -197,6 +198,8 @@ components:
           type: string
         url:
           type: string
+        new_entry_count:
+          type: integer
   securitySchemes:
     basicAuth:
       type: http
