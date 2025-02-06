@@ -19,8 +19,9 @@ import (
 // EntriesUpdate is the builder for updating Entries entities.
 type EntriesUpdate struct {
 	config
-	hooks    []Hook
-	mutation *EntriesMutation
+	hooks     []Hook
+	mutation  *EntriesMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the EntriesUpdate builder.
@@ -162,6 +163,12 @@ func (eu *EntriesUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (eu *EntriesUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *EntriesUpdate {
+	eu.modifiers = append(eu.modifiers, modifiers...)
+	return eu
+}
+
 func (eu *EntriesUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	_spec := sqlgraph.NewUpdateSpec(entries.Table, entries.Columns, sqlgraph.NewFieldSpec(entries.FieldID, field.TypeInt))
 	if ps := eu.mutation.predicates; len(ps) > 0 {
@@ -218,6 +225,7 @@ func (eu *EntriesUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(eu.modifiers...)
 	if n, err = sqlgraph.UpdateNodes(ctx, eu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{entries.Label}
@@ -233,9 +241,10 @@ func (eu *EntriesUpdate) sqlSave(ctx context.Context) (n int, err error) {
 // EntriesUpdateOne is the builder for updating a single Entries entity.
 type EntriesUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *EntriesMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *EntriesMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetTitle sets the "title" field.
@@ -384,6 +393,12 @@ func (euo *EntriesUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (euo *EntriesUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *EntriesUpdateOne {
+	euo.modifiers = append(euo.modifiers, modifiers...)
+	return euo
+}
+
 func (euo *EntriesUpdateOne) sqlSave(ctx context.Context) (_node *Entries, err error) {
 	_spec := sqlgraph.NewUpdateSpec(entries.Table, entries.Columns, sqlgraph.NewFieldSpec(entries.FieldID, field.TypeInt))
 	id, ok := euo.mutation.ID()
@@ -457,6 +472,7 @@ func (euo *EntriesUpdateOne) sqlSave(ctx context.Context) (_node *Entries, err e
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(euo.modifiers...)
 	_node = &Entries{config: euo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

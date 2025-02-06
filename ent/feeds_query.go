@@ -26,6 +26,7 @@ type FeedsQuery struct {
 	predicates  []predicate.Feeds
 	withEntries *EntriesQuery
 	withFKs     bool
+	modifiers   []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -278,8 +279,9 @@ func (fq *FeedsQuery) Clone() *FeedsQuery {
 		predicates:  append([]predicate.Feeds{}, fq.predicates...),
 		withEntries: fq.withEntries.Clone(),
 		// clone intermediate query.
-		sql:  fq.sql.Clone(),
-		path: fq.path,
+		sql:       fq.sql.Clone(),
+		path:      fq.path,
+		modifiers: append([]func(*sql.Selector){}, fq.modifiers...),
 	}
 }
 
@@ -389,6 +391,9 @@ func (fq *FeedsQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Feeds,
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
+	if len(fq.modifiers) > 0 {
+		_spec.Modifiers = fq.modifiers
+	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -442,6 +447,9 @@ func (fq *FeedsQuery) loadEntries(ctx context.Context, query *EntriesQuery, node
 
 func (fq *FeedsQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := fq.querySpec()
+	if len(fq.modifiers) > 0 {
+		_spec.Modifiers = fq.modifiers
+	}
 	_spec.Node.Columns = fq.ctx.Fields
 	if len(fq.ctx.Fields) > 0 {
 		_spec.Unique = fq.ctx.Unique != nil && *fq.ctx.Unique
@@ -504,6 +512,9 @@ func (fq *FeedsQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if fq.ctx.Unique != nil && *fq.ctx.Unique {
 		selector.Distinct()
 	}
+	for _, m := range fq.modifiers {
+		m(selector)
+	}
 	for _, p := range fq.predicates {
 		p(selector)
 	}
@@ -519,6 +530,12 @@ func (fq *FeedsQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (fq *FeedsQuery) Modify(modifiers ...func(s *sql.Selector)) *FeedsSelect {
+	fq.modifiers = append(fq.modifiers, modifiers...)
+	return fq.Select()
 }
 
 // FeedsGroupBy is the group-by builder for Feeds entities.
@@ -609,4 +626,10 @@ func (fs *FeedsSelect) sqlScan(ctx context.Context, root *FeedsQuery, v any) err
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (fs *FeedsSelect) Modify(modifiers ...func(s *sql.Selector)) *FeedsSelect {
+	fs.modifiers = append(fs.modifiers, modifiers...)
+	return fs
 }

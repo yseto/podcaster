@@ -18,8 +18,9 @@ import (
 // UsersUpdate is the builder for updating Users entities.
 type UsersUpdate struct {
 	config
-	hooks    []Hook
-	mutation *UsersMutation
+	hooks     []Hook
+	mutation  *UsersMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the UsersUpdate builder.
@@ -124,6 +125,12 @@ func (uu *UsersUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (uu *UsersUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *UsersUpdate {
+	uu.modifiers = append(uu.modifiers, modifiers...)
+	return uu
+}
+
 func (uu *UsersUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	_spec := sqlgraph.NewUpdateSpec(users.Table, users.Columns, sqlgraph.NewFieldSpec(users.FieldID, field.TypeInt))
 	if ps := uu.mutation.predicates; len(ps) > 0 {
@@ -184,6 +191,7 @@ func (uu *UsersUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(uu.modifiers...)
 	if n, err = sqlgraph.UpdateNodes(ctx, uu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{users.Label}
@@ -199,9 +207,10 @@ func (uu *UsersUpdate) sqlSave(ctx context.Context) (n int, err error) {
 // UsersUpdateOne is the builder for updating a single Users entity.
 type UsersUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *UsersMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *UsersMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetName sets the "name" field.
@@ -313,6 +322,12 @@ func (uuo *UsersUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (uuo *UsersUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *UsersUpdateOne {
+	uuo.modifiers = append(uuo.modifiers, modifiers...)
+	return uuo
+}
+
 func (uuo *UsersUpdateOne) sqlSave(ctx context.Context) (_node *Users, err error) {
 	_spec := sqlgraph.NewUpdateSpec(users.Table, users.Columns, sqlgraph.NewFieldSpec(users.FieldID, field.TypeInt))
 	id, ok := uuo.mutation.ID()
@@ -390,6 +405,7 @@ func (uuo *UsersUpdateOne) sqlSave(ctx context.Context) (_node *Users, err error
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(uuo.modifiers...)
 	_node = &Users{config: uuo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues

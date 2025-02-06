@@ -25,6 +25,7 @@ type EntriesQuery struct {
 	predicates []predicate.Entries
 	withFeeds  *FeedsQuery
 	withFKs    bool
+	modifiers  []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -277,8 +278,9 @@ func (eq *EntriesQuery) Clone() *EntriesQuery {
 		predicates: append([]predicate.Entries{}, eq.predicates...),
 		withFeeds:  eq.withFeeds.Clone(),
 		// clone intermediate query.
-		sql:  eq.sql.Clone(),
-		path: eq.path,
+		sql:       eq.sql.Clone(),
+		path:      eq.path,
+		modifiers: append([]func(*sql.Selector){}, eq.modifiers...),
 	}
 }
 
@@ -391,6 +393,9 @@ func (eq *EntriesQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Entr
 		node.Edges.loadedTypes = loadedTypes
 		return node.assignValues(columns, values)
 	}
+	if len(eq.modifiers) > 0 {
+		_spec.Modifiers = eq.modifiers
+	}
 	for i := range hooks {
 		hooks[i](ctx, _spec)
 	}
@@ -444,6 +449,9 @@ func (eq *EntriesQuery) loadFeeds(ctx context.Context, query *FeedsQuery, nodes 
 
 func (eq *EntriesQuery) sqlCount(ctx context.Context) (int, error) {
 	_spec := eq.querySpec()
+	if len(eq.modifiers) > 0 {
+		_spec.Modifiers = eq.modifiers
+	}
 	_spec.Node.Columns = eq.ctx.Fields
 	if len(eq.ctx.Fields) > 0 {
 		_spec.Unique = eq.ctx.Unique != nil && *eq.ctx.Unique
@@ -506,6 +514,9 @@ func (eq *EntriesQuery) sqlQuery(ctx context.Context) *sql.Selector {
 	if eq.ctx.Unique != nil && *eq.ctx.Unique {
 		selector.Distinct()
 	}
+	for _, m := range eq.modifiers {
+		m(selector)
+	}
 	for _, p := range eq.predicates {
 		p(selector)
 	}
@@ -521,6 +532,12 @@ func (eq *EntriesQuery) sqlQuery(ctx context.Context) *sql.Selector {
 		selector.Limit(*limit)
 	}
 	return selector
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (eq *EntriesQuery) Modify(modifiers ...func(s *sql.Selector)) *EntriesSelect {
+	eq.modifiers = append(eq.modifiers, modifiers...)
+	return eq.Select()
 }
 
 // EntriesGroupBy is the group-by builder for Entries entities.
@@ -611,4 +628,10 @@ func (es *EntriesSelect) sqlScan(ctx context.Context, root *EntriesQuery, v any)
 	}
 	defer rows.Close()
 	return sql.ScanSlice(rows, v)
+}
+
+// Modify adds a query modifier for attaching custom logic to queries.
+func (es *EntriesSelect) Modify(modifiers ...func(s *sql.Selector)) *EntriesSelect {
+	es.modifiers = append(es.modifiers, modifiers...)
+	return es
 }

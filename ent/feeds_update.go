@@ -18,8 +18,9 @@ import (
 // FeedsUpdate is the builder for updating Feeds entities.
 type FeedsUpdate struct {
 	config
-	hooks    []Hook
-	mutation *FeedsMutation
+	hooks     []Hook
+	mutation  *FeedsMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // Where appends a list predicates to the FeedsUpdate builder.
@@ -124,6 +125,12 @@ func (fu *FeedsUpdate) ExecX(ctx context.Context) {
 	}
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (fu *FeedsUpdate) Modify(modifiers ...func(u *sql.UpdateBuilder)) *FeedsUpdate {
+	fu.modifiers = append(fu.modifiers, modifiers...)
+	return fu
+}
+
 func (fu *FeedsUpdate) sqlSave(ctx context.Context) (n int, err error) {
 	_spec := sqlgraph.NewUpdateSpec(feeds.Table, feeds.Columns, sqlgraph.NewFieldSpec(feeds.FieldID, field.TypeInt))
 	if ps := fu.mutation.predicates; len(ps) > 0 {
@@ -184,6 +191,7 @@ func (fu *FeedsUpdate) sqlSave(ctx context.Context) (n int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(fu.modifiers...)
 	if n, err = sqlgraph.UpdateNodes(ctx, fu.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{feeds.Label}
@@ -199,9 +207,10 @@ func (fu *FeedsUpdate) sqlSave(ctx context.Context) (n int, err error) {
 // FeedsUpdateOne is the builder for updating a single Feeds entity.
 type FeedsUpdateOne struct {
 	config
-	fields   []string
-	hooks    []Hook
-	mutation *FeedsMutation
+	fields    []string
+	hooks     []Hook
+	mutation  *FeedsMutation
+	modifiers []func(*sql.UpdateBuilder)
 }
 
 // SetTitle sets the "title" field.
@@ -313,6 +322,12 @@ func (fuo *FeedsUpdateOne) ExecX(ctx context.Context) {
 	}
 }
 
+// Modify adds a statement modifier for attaching custom logic to the UPDATE statement.
+func (fuo *FeedsUpdateOne) Modify(modifiers ...func(u *sql.UpdateBuilder)) *FeedsUpdateOne {
+	fuo.modifiers = append(fuo.modifiers, modifiers...)
+	return fuo
+}
+
 func (fuo *FeedsUpdateOne) sqlSave(ctx context.Context) (_node *Feeds, err error) {
 	_spec := sqlgraph.NewUpdateSpec(feeds.Table, feeds.Columns, sqlgraph.NewFieldSpec(feeds.FieldID, field.TypeInt))
 	id, ok := fuo.mutation.ID()
@@ -390,6 +405,7 @@ func (fuo *FeedsUpdateOne) sqlSave(ctx context.Context) (_node *Feeds, err error
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	_spec.AddModifiers(fuo.modifiers...)
 	_node = &Feeds{config: fuo.config}
 	_spec.Assign = _node.assignValues
 	_spec.ScanValues = _node.scanValues
