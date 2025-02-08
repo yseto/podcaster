@@ -10,16 +10,19 @@
       <div class="card-header">
         サブスクリプション
         <div class="float-right">
-          <a class="btn btn-secondary btn-sm" @click="fetchSubscriptions">再読み込み</a>
+          {{ crawlState }}
+          <button class="btn btn-secondary btn-sm" @click="crawlSubscriptions"
+            :disabled="crawlSubscriptionState">すべて更新する</button>
+          <a class="btn btn-primary btn-sm" @click="fetchSubscriptions">再読み込み</a>
         </div>
       </div>
       <ul class="list-group">
         <li v-for="(item, index) in subscriptions" :key="index" class="list-group-item">
           <a class="link-primary" style="cursor: pointer" :data-index="index" @click="openSubscription">{{ item.title
             }}</a>
-            <span class="badge badge-light" v-if="item.new_entry_count>0">
-              {{ item.new_entry_count }}
-            </span>
+          <span class="badge badge-light" v-if="item.new_entry_count > 0">
+            {{ item.new_entry_count }}
+          </span>
           <div class="float-right">
             <a class="btn btn-sm btn-warning" @click="deleteSubscriptionPre" :data-index="index">削除</a>
           </div>
@@ -114,6 +117,9 @@ export default defineComponent({
     const currentEpisode = ref<Episode | undefined>(undefined)
 
     const feedURL = ref<string>("")
+
+    const crawlState = ref<string>("")
+    const crawlSubscriptionState = ref<boolean>(false)
 
     const deleteSubscriptionVal = ref<Subscription | undefined>(undefined)
 
@@ -294,11 +300,42 @@ export default defineComponent({
         subscriptions.value = data.data
       })
     }
+
+    const crawlSubscriptions = async () => {
+      crawlSubscriptionState.value = true
+      crawlState.value = "0" + "/" + subscriptions.value.length
+
+      const f = async (id: number, index: number) => {
+        return new Promise<void>(async (resolve) => {
+          await client.POST("/api/subscription/{id}/-/fetch", {
+            params: {
+              path: {
+                id
+              }
+            }
+          }).then(() => {
+            crawlState.value = (index + 1) + "/" + subscriptions.value.length
+          })
+          resolve()
+        })
+      }
+
+      for (const [index, sub] of subscriptions.value.entries()) await f(sub.id, index)
+
+      crawlState.value = ""
+      crawlSubscriptionState.value = false
+
+      fetchSubscriptions()
+    }
+
     // on load
     fetchSubscriptions()
 
     return {
       feedURL,
+
+      crawlState,
+      crawlSubscriptionState,
 
       deleteSubscriptionVal,
 
@@ -318,6 +355,7 @@ export default defineComponent({
       registerSubscription,
 
       fetchSubscriptions,
+      crawlSubscriptions,
     }
   },
 })
