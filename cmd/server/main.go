@@ -12,7 +12,6 @@ import (
 
 	"github.com/yseto/podcaster/ent"
 	"github.com/yseto/podcaster/server"
-	"github.com/yseto/podcaster/server/api"
 )
 
 func main() {
@@ -37,7 +36,7 @@ func main() {
 	}
 
 	svr := server.NewServer(client)
-	h := api.HandlerFromMux(api.NewStrictHandler(svr, nil), r)
+	h := server.HandlerFromMux(server.NewStrictHandler(svr, nil), r)
 
 	mw, err := server.CreateMiddleware(client)
 	if err != nil {

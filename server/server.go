@@ -16,7 +16,6 @@ import (
 	"github.com/yseto/podcaster/ent/entries"
 	"github.com/yseto/podcaster/ent/feeds"
 	"github.com/yseto/podcaster/ent/users"
-	"github.com/yseto/podcaster/server/api"
 )
 
 type server struct {
@@ -27,9 +26,9 @@ func NewServer(ent *ent.Client) *server {
 	return &server{ent: ent}
 }
 
-var _ api.StrictServerInterface = (*server)(nil)
+var _ StrictServerInterface = (*server)(nil)
 
-func (s *server) Index(ctx context.Context, request api.IndexRequestObject) (api.IndexResponseObject, error) {
+func (s *server) Index(ctx context.Context, request IndexRequestObject) (IndexResponseObject, error) {
 	// fmt.Sprint(userFromContext(ctx))
 
 	f, err := os.Open("public/index.html")
@@ -37,29 +36,29 @@ func (s *server) Index(ctx context.Context, request api.IndexRequestObject) (api
 		return nil, err
 	}
 
-	return api.Index200TexthtmlResponse{
+	return Index200TexthtmlResponse{
 		Body: f,
 	}, nil
 }
 
-func (s *server) IndexFile(ctx context.Context, request api.IndexFileRequestObject) (api.IndexFileResponseObject, error) {
+func (s *server) IndexFile(ctx context.Context, request IndexFileRequestObject) (IndexFileResponseObject, error) {
 	f, err := os.Open("public/app.js")
 	if err != nil {
 		return nil, err
 	}
 
-	return api.IndexFile200TextjavascriptResponse{
+	return IndexFile200TextjavascriptResponse{
 		Body: f,
 	}, nil
 }
 
-func (s *server) GetEntries(ctx context.Context, request api.GetEntriesRequestObject) (api.GetEntriesResponseObject, error) {
+func (s *server) GetEntries(ctx context.Context, request GetEntriesRequestObject) (GetEntriesResponseObject, error) {
 	feed, err := s.ent.Feeds.Get(ctx, request.Id)
 	if err != nil {
 		if ent.IsNotFound(err) {
-			return api.GetEntries404Response{}, nil
+			return GetEntries404Response{}, nil
 		}
-		return api.GetEntries400Response{}, err
+		return GetEntries400Response{}, err
 	}
 
 	entries, err := feed.QueryEntries().All(ctx)
@@ -67,9 +66,9 @@ func (s *server) GetEntries(ctx context.Context, request api.GetEntriesRequestOb
 		return nil, err
 	}
 
-	var resp []api.Entry
+	var resp []Entry
 	for _, entry := range entries {
-		resp = append(resp, api.Entry{
+		resp = append(resp, Entry{
 			ID:          uint64(entry.ID),
 			Description: entry.Description,
 			Title:       entry.Title,
@@ -79,7 +78,7 @@ func (s *server) GetEntries(ctx context.Context, request api.GetEntriesRequestOb
 		})
 	}
 
-	return api.GetEntries200JSONResponse(resp), nil
+	return GetEntries200JSONResponse(resp), nil
 }
 
 type entryItem struct {
@@ -89,7 +88,7 @@ type entryItem struct {
 	publishedAt time.Time
 }
 
-func (s *server) RegisterSubscription(ctx context.Context, request api.RegisterSubscriptionRequestObject) (api.RegisterSubscriptionResponseObject, error) {
+func (s *server) RegisterSubscription(ctx context.Context, request RegisterSubscriptionRequestObject) (RegisterSubscriptionResponseObject, error) {
 	tx, err := s.ent.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -161,7 +160,7 @@ func (s *server) RegisterSubscription(ctx context.Context, request api.RegisterS
 
 	defer tx.Commit()
 
-	return api.RegisterSubscription200JSONResponse(api.Subscription{
+	return RegisterSubscription200JSONResponse(Subscription{
 		ID:    uint64(feed.ID),
 		Title: feed.Title,
 		Url:   feed.URL,
@@ -182,7 +181,7 @@ func parseFeed(url string) (*gofeed.Feed, error) {
 	return feed, nil
 }
 
-func (s *server) DeleteSubscription(ctx context.Context, request api.DeleteSubscriptionRequestObject) (api.DeleteSubscriptionResponseObject, error) {
+func (s *server) DeleteSubscription(ctx context.Context, request DeleteSubscriptionRequestObject) (DeleteSubscriptionResponseObject, error) {
 	tx, err := s.ent.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -190,18 +189,18 @@ func (s *server) DeleteSubscription(ctx context.Context, request api.DeleteSubsc
 
 	n, err := tx.Feeds.Delete().Where(feeds.IDEQ(request.Id)).Exec(ctx)
 	if err != nil {
-		return api.DeleteSubscription400Response{}, nil
+		return DeleteSubscription400Response{}, nil
 	}
 
 	if n == 0 {
-		return api.DeleteSubscription404Response{}, nil
+		return DeleteSubscription404Response{}, nil
 	}
 
 	defer tx.Commit()
-	return api.DeleteSubscription204Response{}, nil
+	return DeleteSubscription204Response{}, nil
 }
 
-func (s *server) FetchSubscription(ctx context.Context, request api.FetchSubscriptionRequestObject) (api.FetchSubscriptionResponseObject, error) {
+func (s *server) FetchSubscription(ctx context.Context, request FetchSubscriptionRequestObject) (FetchSubscriptionResponseObject, error) {
 	tx, err := s.ent.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -209,7 +208,7 @@ func (s *server) FetchSubscription(ctx context.Context, request api.FetchSubscri
 
 	feed, err := tx.Feeds.Get(ctx, request.Id)
 	if ent.IsNotFound(err) {
-		return api.FetchSubscription404Response{}, nil
+		return FetchSubscription404Response{}, nil
 	}
 	if err != nil {
 		return nil, err
@@ -273,10 +272,10 @@ func (s *server) FetchSubscription(ctx context.Context, request api.FetchSubscri
 		return nil, err
 	}
 
-	return api.FetchSubscription202Response{}, nil
+	return FetchSubscription202Response{}, nil
 }
 
-func (s *server) Subscriptions(ctx context.Context, request api.SubscriptionsRequestObject) (api.SubscriptionsResponseObject, error) {
+func (s *server) Subscriptions(ctx context.Context, request SubscriptionsRequestObject) (SubscriptionsResponseObject, error) {
 	u, err := s.ent.Users.Query().Where(users.ID(int(userFromContext(ctx)))).First(ctx)
 	if err != nil {
 		return nil, err
@@ -314,9 +313,9 @@ func (s *server) Subscriptions(ctx context.Context, request api.SubscriptionsReq
 				GroupBy(s.C(feeds.FieldID))
 		}).ScanX(ctx, &values)
 
-	var respFeeds []api.Subscription
+	var respFeeds []Subscription
 	for _, feed := range values {
-		respFeeds = append(respFeeds, api.Subscription{
+		respFeeds = append(respFeeds, Subscription{
 			ID:            uint64(feed.ID),
 			Title:         feed.Title,
 			Url:           feed.URL,
@@ -324,10 +323,10 @@ func (s *server) Subscriptions(ctx context.Context, request api.SubscriptionsReq
 		})
 	}
 
-	return api.Subscriptions200JSONResponse(respFeeds), nil
+	return Subscriptions200JSONResponse(respFeeds), nil
 }
 
-func (s *server) OpenedEntry(ctx context.Context, request api.OpenedEntryRequestObject) (api.OpenedEntryResponseObject, error) {
+func (s *server) OpenedEntry(ctx context.Context, request OpenedEntryRequestObject) (OpenedEntryResponseObject, error) {
 	tx, err := s.ent.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -335,7 +334,7 @@ func (s *server) OpenedEntry(ctx context.Context, request api.OpenedEntryRequest
 
 	feed, err := tx.Feeds.Get(ctx, request.Id)
 	if ent.IsNotFound(err) {
-		return api.OpenedEntry404Response{}, nil
+		return OpenedEntry404Response{}, nil
 	}
 	if err != nil {
 		return nil, err
@@ -343,7 +342,7 @@ func (s *server) OpenedEntry(ctx context.Context, request api.OpenedEntryRequest
 
 	entry, err := feed.QueryEntries().Where(entries.IDEQ(request.EntryId)).First(ctx)
 	if ent.IsNotFound(err) {
-		return api.OpenedEntry404Response{}, nil
+		return OpenedEntry404Response{}, nil
 	}
 	if err != nil {
 		return nil, err
@@ -357,10 +356,10 @@ func (s *server) OpenedEntry(ctx context.Context, request api.OpenedEntryRequest
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	return api.OpenedEntry202Response{}, nil
+	return OpenedEntry202Response{}, nil
 }
 
-func (s *server) DeleteEntry(ctx context.Context, request api.DeleteEntryRequestObject) (api.DeleteEntryResponseObject, error) {
+func (s *server) DeleteEntry(ctx context.Context, request DeleteEntryRequestObject) (DeleteEntryResponseObject, error) {
 	tx, err := s.ent.BeginTx(ctx, nil)
 	if err != nil {
 		return nil, err
@@ -368,7 +367,7 @@ func (s *server) DeleteEntry(ctx context.Context, request api.DeleteEntryRequest
 
 	feed, err := tx.Feeds.Get(ctx, request.Id)
 	if ent.IsNotFound(err) {
-		return api.DeleteEntry404Response{}, nil
+		return DeleteEntry404Response{}, nil
 	}
 	if err != nil {
 		return nil, err
@@ -376,7 +375,7 @@ func (s *server) DeleteEntry(ctx context.Context, request api.DeleteEntryRequest
 
 	entry, err := feed.QueryEntries().Where(entries.IDEQ(request.EntryId)).First(ctx)
 	if ent.IsNotFound(err) {
-		return api.DeleteEntry404Response{}, nil
+		return DeleteEntry404Response{}, nil
 	}
 	if err != nil {
 		return nil, err
@@ -390,5 +389,5 @@ func (s *server) DeleteEntry(ctx context.Context, request api.DeleteEntryRequest
 	if err := tx.Commit(); err != nil {
 		return nil, err
 	}
-	return api.DeleteEntry202Response{}, nil
+	return DeleteEntry202Response{}, nil
 }

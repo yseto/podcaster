@@ -9,7 +9,6 @@ import (
 	middleware "github.com/oapi-codegen/nethttp-middleware"
 
 	"github.com/yseto/podcaster/ent"
-	"github.com/yseto/podcaster/server/api"
 )
 
 func CreateMiddlewareEmptyContext() func(next http.Handler) http.Handler {
@@ -21,7 +20,7 @@ func CreateMiddlewareEmptyContext() func(next http.Handler) http.Handler {
 }
 
 func CreateMiddleware(ent *ent.Client) (func(next http.Handler) http.Handler, error) {
-	spec, err := api.GetSwagger()
+	spec, err := GetSwagger()
 	if err != nil {
 		return nil, fmt.Errorf("loading spec: %w", err)
 	}
